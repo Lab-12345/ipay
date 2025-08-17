@@ -18,9 +18,18 @@
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.17.1"
+    "mongoose": "^8.17.1",
+    "twilio": "^5.8.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-username/recharge-backend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/recharge-backend/issues"
+  },
+  "homepage": "https://github.com/your-username/recharge-backend#readme"
 }
