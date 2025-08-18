@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 class IpayColor{
   // Colors
   // Primary and Secondary Colors
-  static const Color primaryColor = Color(0xFF4B68FF);
-  static const Color primaryColor2 = Color(0xFF0060ce);
+  static const Color primaryColor2 = Color(0xFF4B68FF);
+  static const Color primaryColor = Color(0xFF0060ce);
   static const Color secondaryColor = Color(0xFFFFE248);
   static const Color accentColor = Color(0xFFB6C7FF);
 

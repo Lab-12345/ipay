@@ -50,7 +50,7 @@ class _IPayPhoneAuthScreenState extends State<IPayPhoneAuthScreen> {
                   IpayHelper.CustomText(
                     text: "Welcome To Ipay",
                     fontSize: 20,
-                    color: IpayColor.primaryColor2,
+                    color: IpayColor.primaryColor,
                     fontWeight: FontWeight.w900,
                   ),
                   const SizedBox(height: IpaySize.spaceBtwItemsSm + 2),
@@ -177,6 +177,7 @@ class _IPayPhoneAuthScreenState extends State<IPayPhoneAuthScreen> {
                     color: Colors.grey.shade600,
                     fontWeight: FontWeight.normal,
                   ),
+                  SizedBox(width: 4),
                   GestureDetector(
                     onTap: () {
                       // Handle contact support
@@ -187,7 +188,7 @@ class _IPayPhoneAuthScreenState extends State<IPayPhoneAuthScreen> {
                     child: IpayHelper.CustomText(
                       text: 'Contact Support',
                       fontSize: 15,
-                      color: Color(0xFF1976D2),
+                      color: IpayColor.primaryColor,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -250,7 +251,7 @@ class _IPayPhoneAuthScreenState extends State<IPayPhoneAuthScreen> {
                       child: const Icon(
                         Icons.facebook,
                         size: 45,
-                        color: IpayColor.primaryColor,
+                        color: IpayColor.primaryColor2,
                       ),
                     ),
                   ),

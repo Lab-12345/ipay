@@ -131,7 +131,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(IpaySize.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -181,7 +181,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                         focusedBorder: const OutlineInputBorder(
                           borderRadius: BorderRadius.all(Radius.circular(12)),
                           borderSide: BorderSide(
-                            color: IpayColor.primaryColor2,
+                            color: IpayColor.primaryColor,
                           ),
                         ),
                       ),

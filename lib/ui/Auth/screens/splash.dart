@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:ipay/core/constants/app_color.dart';
 import 'package:ipay/ui/Auth/screens/PhoneLogin.dart';
 
 import '../../../core/constants/app_Helper_Function.dart';
@@ -35,7 +36,8 @@ class _SplashScreenState extends State<SplashScreen> {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFF0060ce), Color(0xFF165aba)],
+              colors: [IpayColor.primaryColor,
+                Color(0xFF165aba)],
             ),
           ),
           child: Stack(

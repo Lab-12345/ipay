@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:ipay/core/constants/app_Helper_Function.dart';
 import 'package:ipay/core/constants/app_color.dart';
 import 'package:ipay/core/constants/app_constants.dart';
 import 'package:ipay/ui/Home/screens/Home.dart';
@@ -42,24 +43,14 @@ class _OtpverifiedState extends State<Otpverified> {
           children: [
             Lottie.asset('assets/animation/Verified.json',animate: true,repeat: false,height: 300,width: 300),
             SizedBox(height: IpaySize.defaultSpace),
-            Text(
-              'Verified',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: IpayColor.primaryColor,
-              ),
-            ),
+            IpayHelper.CustomText(text: 'Verified', fontSize: 25, color: IpayColor.primaryColor, fontWeight: FontWeight.bold,),
             SizedBox(height: IpaySize.defaultSpace),
-            Text(
-              'Your Account has been\n verified successfully!',
-              style: TextStyle(color: Colors.grey.shade800, fontSize: 18),
-            ),
+            IpayHelper.CustomText(text: 'Your Account has been\n verified successfully!', fontSize: 18, color: Colors.grey.shade800, fontWeight: FontWeight.w900),
             SizedBox(height: IpaySize.defaultSpace),
             ElevatedButton(
               onPressed: () {},
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0060ce),
+                backgroundColor:IpayColor.primaryColor,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
