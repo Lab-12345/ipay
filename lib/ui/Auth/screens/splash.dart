@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ipay/ui/Auth/screens/PhoneLogin.dart';
 
+import '../../../core/constants/app_Helper_Function.dart';
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -18,7 +20,7 @@ class _SplashScreenState extends State<SplashScreen> {
           () {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const IPayWelcomeScreen()),
+          MaterialPageRoute(builder: (context) => const IPayPhoneAuthScreen()),
         );
       },
     );
@@ -58,7 +60,7 @@ class _SplashScreenState extends State<SplashScreen> {
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Image.asset('assets/images/Ipay-remove_logo.png',height: 200,),
+                  IpayHelper.CustomImage(image: 'Ipay-remove_logo.png', height:null, width: null,)
                 ],
               ),
             ],

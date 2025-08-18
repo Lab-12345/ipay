@@ -13,6 +13,7 @@ class IpayApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'iPay App',
       themeMode: ThemeMode.system,
       theme: IpayTheme.lightTheme,
       darkTheme: IpayTheme.darkTheme,
