@@ -19,16 +19,20 @@ class IpayHelper {
     required Color color,
     required FontWeight fontWeight,
     textAlign = TextAlign,
+    maxLines= bool,
+    overflow= TextOverflow,
   }) {
     return Text(
       text,
       style: TextStyle(
         fontSize: fontSize,
         fontFamily: fontFamily ?? 'Ubuntu',
-        color: color,
-        fontWeight: fontWeight,
+        color: color??Colors.black,
+        fontWeight: fontWeight??FontWeight.normal,
       ),
       textAlign: TextAlign.start ?? TextAlign.center,
+      maxLines: 1 ?? 2,
+      overflow: TextOverflow.ellipsis,
     );
   }
 

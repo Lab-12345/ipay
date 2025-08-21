@@ -1,118 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:ipay/ui/Auth/screens/OTPSuccessScreen.dart';
+import 'package:provider/provider.dart'; // Import Provider
 import 'package:ipay/core/constants/app_color.dart';
 import 'package:ipay/core/constants/app_constants.dart';
-import 'dart:async';
-
 import 'package:ipay/ui/Auth/screens/OTPVerified.dart';
+import 'package:ipay/providers/otp_provider.dart'; // Import the new provider
 
 import '../../../core/constants/app_Helper_Function.dart';
 
-class OTPVerificationScreen extends StatefulWidget {
+class OTPVerificationScreen extends StatelessWidget {
   final String phoneNumber;
 
   const OTPVerificationScreen({Key? key, this.phoneNumber = ''})
-    : super(key: key);
-
-  @override
-  State<OTPVerificationScreen> createState() => _OTPVerificationScreenState();
-}
-
-class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
-  final int otpLength = 6; /// ✅ 6-digit OTP
-  late List<TextEditingController> otpControllers;
-  late List<FocusNode> focusNodes;
-  Timer? _timer;
-  int _resendTimer = 45;
-  String enteredOTP = '';
-
-  @override
-  void initState() {
-    super.initState();
-    otpControllers = List.generate(
-      otpLength,
-      (index) => TextEditingController(),
-    );
-    focusNodes = List.generate(otpLength, (index) => FocusNode());
-    startResendTimer();
-  }
-
-  @override
-  void dispose() {
-    for (var controller in otpControllers) {
-      controller.dispose();
-    }
-    for (var node in focusNodes) {
-      node.dispose();
-    }
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  void startResendTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_resendTimer > 0) {
-        setState(() {
-          _resendTimer--;
-        });
-      } else {
-        timer.cancel();
-      }
-    });
-  }
-
-  void onOTPChanged(String value, int index) {
-    if (value.isNotEmpty) {
-      if (index < otpLength - 1) {
-        FocusScope.of(context).requestFocus(focusNodes[index + 1]);
-      } else {
-        FocusScope.of(context).unfocus();
-      }
-    } else if (value.isEmpty && index > 0) {
-      FocusScope.of(context).requestFocus(focusNodes[index - 1]);
-    }
-
-    setState(() {
-      enteredOTP = otpControllers.map((controller) => controller.text).join();
-    });
-  }
-
-  void verifyOTP() {
-    String otp = otpControllers.map((controller) => controller.text).join();
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => Otpverified()),
-    );
-    if (otp.length == otpLength) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Verifying OTP: $otp')));
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter complete OTP')),
-      );
-    }
-  }
-
-  void resendOTP() {
-    if (_resendTimer == 0) {
-      setState(() {
-        _resendTimer = 27;
-        for (var controller in otpControllers) {
-          controller.clear();
-        }
-        enteredOTP = '';
-      });
-      startResendTimer();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('OTP resent successfully')));
-    }
-  }
+      : super(key: key);
 
   /// UI Design
   @override
   Widget build(BuildContext context) {
-    print('Entered OTP: $enteredOTP');
+    // Get the provider instance
+    final otpProvider = Provider.of<OtpProvider>(context);
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -145,7 +52,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               ),
               const SizedBox(height: IpaySize.spaceBtwItemsSm),
               Text(
-                widget.phoneNumber,
+                phoneNumber,
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
@@ -157,13 +64,13 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               /// ✅ 6 OTP input fields
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(otpLength, (index) {
+                children: List.generate(OtpProvider.otpLength, (index) {
                   return SizedBox(
                     width: 50,
                     height: 50,
                     child: TextField(
-                      controller: otpControllers[index],
-                      focusNode: focusNodes[index],
+                      controller: otpProvider.otpControllers[index],
+                      focusNode: otpProvider.focusNodes[index],
                       textAlign: TextAlign.center,
                       keyboardType: TextInputType.number,
                       maxLength: 1,
@@ -175,17 +82,17 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                       decoration: InputDecoration(
                         counterText: '',
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(IpaySize.borderRadiusMd),
                           borderSide: BorderSide(color: Colors.grey.shade300),
                         ),
                         focusedBorder: const OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(12)),
+                          borderRadius: BorderRadius.all(Radius.circular(IpaySize.borderRadiusMd)),
                           borderSide: BorderSide(
                             color: IpayColor.primaryColor,
                           ),
                         ),
                       ),
-                      onChanged: (value) => onOTPChanged(value, index),
+                      onChanged: (value) => otpProvider.onOTPChanged(context, value, index),
                     ),
                   );
                 }),
@@ -194,31 +101,38 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               const SizedBox(height: IpaySize.defaultSpace),
 
               GestureDetector(
-                onTap: resendOTP,
-                child: IpayHelper.CustomText(
-                  text: _resendTimer > 0
-                      ? 'Resend OTP in ${_resendTimer}s'
-                      : 'Resend OTP',
-                  fontSize: 14,
-                  color: _resendTimer > 0
-                      ? Colors.grey.shade500
-                      : IpayColor.primaryColor,
-                  fontWeight: FontWeight.w500,
+                onTap: otpProvider.resendOTP,
+                child: Consumer<OtpProvider>(
+                  builder: (context, provider, child) {
+                    return IpayHelper.CustomText(
+                      text: provider.resendTimer > 0
+                          ? 'Resend OTP in ${provider.resendTimer}s'
+                          : 'Resend OTP',
+                      fontSize: 14,
+                      color: provider.resendTimer > 0
+                          ? Colors.grey.shade500
+                          : IpayColor.primaryColor,
+                      fontWeight: FontWeight.w500,
+                    );
+                  },
                 ),
               ),
 
               const Spacer(),
 
               ElevatedButton(
-                onPressed: verifyOTP,
+                onPressed: () {
+                  otpProvider.verifyOTP(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => OTPSuccessScreen(phoneNumber: phoneNumber, token: '',)));
+                },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1976D2),
+                  backgroundColor: IpayColor.primaryColor,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   minimumSize: const Size(double.infinity, 50),
                 ),
-                child: IpayHelper.CustomText(text: 'Verify OTP', fontSize: 15, color: Colors.white, fontWeight: FontWeight.w800)
+                child: IpayHelper.CustomText(text: 'Verify OTP', fontSize: 15, color: Colors.white, fontWeight: FontWeight.w800),
               ),
             ],
           ),
