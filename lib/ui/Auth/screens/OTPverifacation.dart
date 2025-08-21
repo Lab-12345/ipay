@@ -3,7 +3,6 @@ import 'package:ipay/ui/Auth/screens/OTPSuccessScreen.dart';
 import 'package:provider/provider.dart'; // Import Provider
 import 'package:ipay/core/constants/app_color.dart';
 import 'package:ipay/core/constants/app_constants.dart';
-import 'package:ipay/ui/Auth/screens/OTPVerified.dart';
 import 'package:ipay/providers/otp_provider.dart'; // Import the new provider
 
 import '../../../core/constants/app_Helper_Function.dart';
