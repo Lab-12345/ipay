@@ -1,26 +1,21 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // Import Provider
 import 'package:ipay/core/constants/app_color.dart';
 import 'package:ipay/core/constants/app_constants.dart';
 import 'package:ipay/ui/Auth/screens/OTPverifacation.dart';
+import 'package:ipay/providers/otp_provider.dart'; // Import the OTP provider
 
-class IPayWelcomeScreen extends StatefulWidget {
-  const IPayWelcomeScreen({Key? key}) : super(key: key);
+import '../../../core/constants/app_Helper_Function.dart';
+import '../../../providers/auth_provider.dart';
 
-  @override
-  State<IPayWelcomeScreen> createState() => _IPayWelcomeScreenState();
-}
-
-class _IPayWelcomeScreenState extends State<IPayWelcomeScreen> {
-  final TextEditingController _phoneController = TextEditingController();
-
-  @override
-  void dispose() {
-    _phoneController.dispose();
-    super.dispose();
-  }
+class IPayPhoneAuthScreen extends StatelessWidget {
+  const IPayPhoneAuthScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final phoneAuth = Provider.of<PhoneAuthProvider>(context, listen: false);
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -29,81 +24,71 @@ class _IPayWelcomeScreenState extends State<IPayWelcomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height:IpaySize.spaceBtwItems),
-
-              // iPay Logo
-              Image.asset('assets/images/Ipay!logo.png',height: 120,width: 120,),
-
               const SizedBox(height: IpaySize.spaceBtwItems),
-
-              Image.asset('assets/images/Illustration.png',height: 250,width: 250,),
-
+              IpayHelper.CustomImage(image: 'Ipay!logo.png', height: 100, width: 120),
+              const SizedBox(height: IpaySize.spaceBtwItems),
+              IpayHelper.CustomImage(image: 'Illustration.png', height: 270, width: null),
               const SizedBox(height: IpaySize.defaultSpace),
-
-              // Welcome text
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Welcome To Ipay',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontFamily: 'Ubuntu',
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1976D2),
-                    ),
+                  IpayHelper.CustomText(
+                    text: "Welcome To Ipay",
+                    fontSize: 20,
+                    color: IpayColor.primaryColor,
+                    fontWeight: FontWeight.w900,
                   ),
-                  const SizedBox(height: IpaySize.spaceBtwItemsSm+2),
-
-                  const Text(
-                    'Seamless Recharge & Bill payment...',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontFamily: 'Ubuntu',
-                      color: Colors.black87,
-                    ),
+                  const SizedBox(height: IpaySize.spaceBtwItemsSm + 2),
+                  IpayHelper.CustomText(
+                    text: 'Seamless Recharge & Bill payment....',
+                    fontSize: 18,
+                    color: Colors.black,
+                    fontWeight: FontWeight.w800,
                   ),
                 ],
               ),
-
               const SizedBox(height: IpaySize.spaceBtwSections),
-
-              // Phone number input
               Container(
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300,),
-                  borderRadius: BorderRadius.circular(25),
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(
+                    IpaySize.borderRadiusLg + 5,
+                  ),
                 ),
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                      decoration: BoxDecoration(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: IpaySize.borderRadiusLg,
+                        vertical: IpaySize.borderRadiusLg,
+                      ),
+                      decoration: const BoxDecoration(
                         border: Border(
                           right: BorderSide(color: Colors.transparent),
                         ),
                       ),
-                      child: const Text(
-                        '+91',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.black,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      child: IpayHelper.CustomText(
+                        text: '+91',
+                        fontSize: 14,
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     Expanded(
                       child: TextField(
-                        style: TextStyle(color: Colors.black),
-                        controller: _phoneController,
+                        style: const TextStyle(color: Colors.black),
+                        controller: phoneAuth.phoneController,
                         keyboardType: TextInputType.phone,
                         decoration: const InputDecoration(
                           hintText: 'Enter Phone Number',
-                          hintStyle: TextStyle( fontFamily: 'Ubuntu',color: Colors.black54),
+                          hintStyle: TextStyle(
+                            fontFamily: 'Ubuntu',
+                            color: Colors.black54,
+                          ),
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 16,
+                            horizontal: IpaySize.md,
+                            vertical: IpaySize.md,
                           ),
                         ),
                       ),
@@ -111,97 +96,98 @@ class _IPayWelcomeScreenState extends State<IPayWelcomeScreen> {
                   ],
                 ),
               ),
-
               const SizedBox(height: IpaySize.defaultSpace),
-
-              // Continue button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context)=>OTPVerificationScreen(phoneNumber: '',)));
-                    // Handle continue action
-                    if (_phoneController.text.isNotEmpty) {
-                      // Add your navigation or API call logic here
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Continuing with phone number...')),
+                    final fullPhoneNumber="+91${phoneAuth.phoneController.text}";
+                    if (phoneAuth.isPhoneNumberValid) {
+                      // Correct way to navigate and provide the provider
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) {
+                            return ChangeNotifierProvider(
+                              create: (context) => OtpProvider(),
+                              child: OTPVerificationScreen(
+                                phoneNumber: fullPhoneNumber,
+                              ),
+                            );
+                          },
+                        ),
                       );
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please enter phone number')),
+                        const SnackBar(
+                          content: Text('Please enter a valid 10-digit phone number.'),
+                        ),
                       );
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1976D2),
+                    backgroundColor: IpayColor.primaryColor,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(vertical: IpaySize.md),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
+                      borderRadius: BorderRadius.circular(
+                        IpaySize.borderRadiusLg + 5,
+                      ),
                     ),
                   ),
-                  child: const Text(
-                    'Continue',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontFamily: 'Ubuntu',
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: IpayHelper.CustomText(
+                    text: "Continue",
+                    fontSize: 18,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
-
-              const SizedBox(height: 24),
-
-              // Contact support
+              const SizedBox(height: IpaySize.defaultSpace),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    'Need help? ',
-                    style: TextStyle(color: Colors.grey[700]
-                    , fontFamily: 'Ubuntu'),
+                  IpayHelper.CustomText(
+                    text: 'Need help?',
+                    fontSize: 15,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.normal,
                   ),
+                  const SizedBox(width: 4),
                   GestureDetector(
                     onTap: () {
-                      // Handle contact support
+                      if (kDebugMode) {
+                        print('Opening support...');
+                      }
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Opening support...')),
                       );
                     },
-                    child: const Text(
-                      'Contact Support',
-                      style: TextStyle(
-                          fontFamily: 'Ubuntu',
-                        color: Color(0xFF1976D2),
-                        fontWeight: FontWeight.w500,
-                      ),
+                    child: IpayHelper.CustomText(
+                      text: 'Contact Support',
+                      fontSize: 15,
+                      color: IpayColor.primaryColor,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ),
-
-              const SizedBox(height: 30),
-
-              // Divider
-              const Text(
-                'Or sign In with',
-                style: TextStyle(
-                  color: Colors.grey,
-                  fontSize: 14,
-                  fontFamily: 'Ubuntu'
-                ),
+              const SizedBox(height: IpaySize.defaultSpace + 5),
+              IpayHelper.CustomText(
+                text: 'Or Sign With',
+                fontSize: 13,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
               ),
-
-              const SizedBox(height: 20),
-
-              // Social login buttons
+              const SizedBox(height: IpaySize.defaultSpace - 5),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   GestureDetector(
                     onTap: () {
-                      // Handle Google sign in
+                      if (kDebugMode) {
+                        print('Google sign in clicked');
+                      }
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Google sign in clicked')),
                       );
@@ -213,15 +199,22 @@ class _IPayWelcomeScreenState extends State<IPayWelcomeScreen> {
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.grey.shade300),
                       ),
-                      child: Image.asset('assets/images/google-logo.png',height: 25,)
+                      child: Image.asset(
+                        'assets/images/google-logo.png',
+                        height: IpaySize.defaultSpace,
+                      ),
                     ),
                   ),
                   const SizedBox(width: IpaySize.defaultSpace),
                   GestureDetector(
                     onTap: () {
-                      // Handle Facebook sign in
+                      if (kDebugMode) {
+                        print('Facebook sign in clicked');
+                      }
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Facebook sign in clicked')),
+                        const SnackBar(
+                          content: Text('Facebook sign in clicked'),
+                        ),
                       );
                     },
                     child: Container(
@@ -234,36 +227,17 @@ class _IPayWelcomeScreenState extends State<IPayWelcomeScreen> {
                       child: const Icon(
                         Icons.facebook,
                         size: 45,
-                        color: IpayColor.primaryColor,
+                        color: IpayColor.primaryColor2,
                       ),
                     ),
                   ),
                 ],
               ),
-
-              const SizedBox(height: 40),
+              const SizedBox(height: IpaySize.spaceBtwSections + 8),
             ],
           ),
         ),
       ),
-    );
-  }
-}
-
-// Example usage in your main app
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'iPay App',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        fontFamily: 'Roboto',
-      ),
-      home: const IPayWelcomeScreen(),
-      debugShowCheckedModeBanner: false,
     );
   }
 }

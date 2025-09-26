@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:ipay/core/constants/app_color.dart';
 import 'package:ipay/ui/Auth/screens/PhoneLogin.dart';
+
+import '../../../core/constants/app_Helper_Function.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -13,15 +16,12 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Timer(
-      const Duration(seconds: 3),
-          () {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const IPayWelcomeScreen()),
-        );
-      },
-    );
+    Timer(const Duration(seconds: 3), () {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const IPayPhoneAuthScreen()),
+      );
+    });
   }
 
   @override
@@ -33,20 +33,13 @@ class _SplashScreenState extends State<SplashScreen> {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFF0060ce), Color(0xFF165aba)],
+              colors: [IpayColor.primaryColor, Color(0xFF165aba)],
             ),
           ),
           child: Stack(
             alignment: Alignment.center,
             children: [
-              Positioned(
-                bottom: 30,
-                child: Column(
-                  children: const [
-
-                  ],
-                ),
-              ),
+              Positioned(bottom: 30, child: Column(children: const [])),
 
               // Orbit circles
               Positioned.fill(child: _buildOrbitCircles()),
@@ -58,7 +51,11 @@ class _SplashScreenState extends State<SplashScreen> {
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Image.asset('assets/images/Ipay-remove_logo.png',height: 200,),
+                  IpayHelper.CustomImage(
+                    image: 'Ipay-remove_logo.png',
+                    height: 230,
+                    width: 230,
+                  ),
                 ],
               ),
             ],

@@ -14,7 +14,7 @@ class IpaySize{
   // Default Spacing
   static const double defaultSpace = 24.0;
   static const double spaceBtwItems = 16.0;
-  static const double spaceBtwItemsSm = 7.0;
+  static const double spaceBtwItemsSm = 8.0;
   static const double spaceBtwItemsMd = 12.0;
   static const double spaceBtwSections = 32.0;
 
@@ -22,6 +22,7 @@ class IpaySize{
   static const double borderRadiusSm = 5.0;
   static const double borderRadiusMd = 10.0;
   static const double borderRadiusLg = 15.0;
+  static const double borderRadiusXL = 24.0;
 
   // Button Sizes
   static const double buttonHeight = 20.0;
