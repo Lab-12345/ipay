@@ -14,6 +14,7 @@ class EnhancedAuthProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   String? _phoneNumber;
+  String? _token;
   bool _canResend = false;
   int _resendTimer = 30;
   Timer? _timer;
@@ -24,6 +25,7 @@ class EnhancedAuthProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   String? get phoneNumber => _phoneNumber;
+  String? get token => _token;
   bool get canResend => _canResend;
   int get resendTimer => _resendTimer;
 
@@ -87,7 +89,9 @@ class EnhancedAuthProvider extends ChangeNotifier {
       if (response['success'] == true) {
         // Store auth token if provided
         if (response['data'] != null && response['data']['token'] != null) {
-          await _storeAuthToken(response['data']['token']);
+          _token = response['data']['token'];
+          await _storeAuthToken(_token!);
+          notifyListeners();
         }
         return true;
       } else {

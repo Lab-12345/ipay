@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'auth_provider.dart';
+import 'package:provider/provider.dart';
+import 'enhanced_auth_provider.dart';
 
 class OtpProvider with ChangeNotifier {
   static const int otpLength = 6;
@@ -46,7 +47,8 @@ class OtpProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> verifyOTP(BuildContext context, PhoneAuthProvider authProvider) async {
+  Future<bool> verifyOTP(BuildContext context) async {
+    final authProvider = Provider.of<EnhancedAuthProvider>(context, listen: false);
     if (_enteredOTP.length == otpLength) {
       final success = await authProvider.verifyOtp(_enteredOTP);
       if (success) {

@@ -1,7 +1,7 @@
 // lib/ui/Wallet/provider/ipay_wallet_provider.dart
 import 'package:flutter/material.dart';
 import 'package:ipay/services/api_service.dart';
-import 'package:ipay/providers/auth_provider.dart';
+import 'package:ipay/providers/enhanced_auth_provider.dart';
 import 'package:provider/provider.dart';
 
 class IpayWalletProvider extends ChangeNotifier {
@@ -17,7 +17,7 @@ class IpayWalletProvider extends ChangeNotifier {
     try {
       _loading = true;
       notifyListeners();
-      final auth = Provider.of<PhoneAuthProvider>(context, listen: false);
+      final auth = Provider.of<EnhancedAuthProvider>(context, listen: false);
       if (auth.token == null) return;
       final res = await ApiService().getWalletBalance(token: auth.token!);
       final amount = res['data']?['amount'];
@@ -40,7 +40,7 @@ class IpayWalletProvider extends ChangeNotifier {
     try {
       _txLoading = true;
       notifyListeners();
-      final auth = Provider.of<PhoneAuthProvider>(context, listen: false);
+      final auth = Provider.of<EnhancedAuthProvider>(context, listen: false);
       if (auth.token == null) return;
       final res = await ApiService().getWalletTransactions(token: auth.token!);
       final txs = res['data']?['transactions'];

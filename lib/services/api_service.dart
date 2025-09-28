@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'app_config.dart';
 
@@ -9,14 +11,15 @@ class ApiService {
 
   final http.Client _client = http.Client();
 
+  // -------------------------
   // Generic GET request
+  // -------------------------
   Future<Map<String, dynamic>> get(String endpoint, {String? token}) async {
     try {
       final headers = _getHeaders(token);
-      final response = await _client.get(
-        Uri.parse('${AppConfig.baseUrl}$endpoint'),
-        headers: headers,
-      ).timeout(AppConfig.connectionTimeout);
+      final response = await _client
+          .get(Uri.parse('${AppConfig.baseUrl}$endpoint'), headers: headers)
+          .timeout(AppConfig.connectionTimeout);
 
       return _handleResponse(response);
     } catch (e) {
@@ -24,19 +27,23 @@ class ApiService {
     }
   }
 
+  // -------------------------
   // Generic POST request
+  // -------------------------
   Future<Map<String, dynamic>> post(
-    String endpoint,
-    Map<String, dynamic> data, {
-    String? token,
-  }) async {
+      String endpoint,
+      Map<String, dynamic> data, {
+        String? token,
+      }) async {
     try {
       final headers = _getHeaders(token);
-      final response = await _client.post(
+      final response = await _client
+          .post(
         Uri.parse('${AppConfig.baseUrl}$endpoint'),
         headers: headers,
         body: jsonEncode(data),
-      ).timeout(AppConfig.connectionTimeout);
+      )
+          .timeout(AppConfig.connectionTimeout);
 
       return _handleResponse(response);
     } catch (e) {
@@ -44,7 +51,9 @@ class ApiService {
     }
   }
 
-  // Authentication methods
+  // -------------------------
+  // Auth
+  // -------------------------
   Future<Map<String, dynamic>> sendOtp(String phone) async {
     return await post('/api/auth/send-otp', {'phone': phone});
   }
@@ -53,7 +62,9 @@ class ApiService {
     return await post('/api/auth/verify-otp', {'phone': phone, 'otp': otp});
   }
 
-  // Recharge methods
+  // -------------------------
+  // Recharge
+  // -------------------------
   Future<Map<String, dynamic>> getBalance({String? token}) async {
     return await get('/api/recharge/balance', token: token);
   }
@@ -66,30 +77,46 @@ class ApiService {
     return await get('/api/recharge/circles', token: token);
   }
 
-  Future<Map<String, dynamic>> getPlans(String operatorId, String circleId, {String? token}) async {
-    return await get('/api/recharge/plans?operatorId=$operatorId&circleId=$circleId', token: token);
+  Future<Map<String, dynamic>> getPlans(
+      String operatorId,
+      String circleId, {
+        String? token,
+      }) async {
+    return await get(
+      '/api/recharge/plans?operatorId=$operatorId&circleId=$circleId',
+      token: token,
+    );
   }
 
   Future<Map<String, dynamic>> performRecharge(
-    String mobileNumber,
-    String operatorId,
-    String circleId,
-    double amount, {
-    String? token,
-  }) async {
-    return await post('/api/recharge/recharge', {
-      'mobileNumber': mobileNumber,
-      'operatorId': operatorId,
-      'circleId': circleId,
-      'amount': amount,
-    }, token: token);
+      String mobileNumber,
+      String operatorId,
+      String circleId,
+      double amount, {
+        String? token,
+      }) async {
+    return await post(
+      '/api/recharge/recharge',
+      {
+        'mobileNumber': mobileNumber,
+        'operatorId': operatorId,
+        'circleId': circleId,
+        'amount': amount,
+      },
+      token: token,
+    );
   }
 
-  Future<Map<String, dynamic>> getRechargeStatus(String clientId, {String? token}) async {
+  Future<Map<String, dynamic>> getRechargeStatus(
+      String clientId, {
+        String? token,
+      }) async {
     return await get('/api/recharge/status/$clientId', token: token);
   }
 
-  // Wallet methods
+  // -------------------------
+  // Wallet
+  // -------------------------
   Future<Map<String, dynamic>> getWalletBalance({required String token}) async {
     return await get('/api/wallet/balance', token: token);
   }
@@ -111,9 +138,7 @@ class ApiService {
     );
   }
 
-  // Razorpay helpers
   Future<Map<String, dynamic>> getRazorpayPublicKey({String? token}) async {
-    // Token optional: route can be public in development
     return await get('/api/wallet/razorpay/key', token: token);
   }
 
@@ -121,9 +146,11 @@ class ApiService {
     required String token,
     required double amount,
   }) async {
-    return await post('/api/wallet/razorpay/order', {
-      'amount': amount,
-    }, token: token);
+    return await post(
+      '/api/wallet/razorpay/order',
+      {'amount': amount},
+      token: token,
+    );
   }
 
   Future<Map<String, dynamic>> verifyRazorpayPayment({
@@ -133,12 +160,16 @@ class ApiService {
     required String signature,
     required double amount,
   }) async {
-    return await post('/api/wallet/razorpay/verify', {
-      'razorpay_order_id': orderId,
-      'razorpay_payment_id': paymentId,
-      'razorpay_signature': signature,
-      'amount': amount,
-    }, token: token);
+    return await post(
+      '/api/wallet/razorpay/verify',
+      {
+        'razorpay_order_id': orderId,
+        'razorpay_payment_id': paymentId,
+        'razorpay_signature': signature,
+        'amount': amount,
+      },
+      token: token,
+    );
   }
 
   Future<Map<String, dynamic>> getWalletSummary({required String token}) async {
@@ -158,11 +189,20 @@ class ApiService {
       if (type != null) 'type': type,
       if (status != null) 'status': status,
     };
-    final query = params.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&');
-    return await get('/api/wallet/transactions${query.isNotEmpty ? '?$query' : ''}', token: token);
+
+    final query = params.entries
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+
+    return await get(
+      '/api/wallet/transactions${query.isNotEmpty ? '?$query' : ''}',
+      token: token,
+    );
   }
 
-  // Helper methods
+  // -------------------------
+  // Helpers
+  // -------------------------
   Map<String, String> _getHeaders(String? token) {
     final headers = {
       'Content-Type': 'application/json',
@@ -172,7 +212,6 @@ class ApiService {
     if (token != null) {
       headers['Authorization'] = 'Bearer $token';
     }
-
     return headers;
   }
 
@@ -181,19 +220,17 @@ class ApiService {
     final body = response.body;
 
     if (statusCode >= 200 && statusCode < 300) {
-      if (body.isEmpty) {
-        return {'success': true};
-      }
-      return jsonDecode(body);
+      return body.isEmpty ? {'success': true} : jsonDecode(body);
     } else {
-      // Try to parse error response
       try {
         final errorData = jsonDecode(body);
         throw ApiException(
           statusCode: statusCode,
-          message: errorData['message'] ?? errorData['error'] ?? 'Unknown error',
+          message: errorData['message'] ??
+              errorData['error'] ??
+              'Unknown error occurred',
         );
-      } catch (e) {
+      } catch (_) {
         throw ApiException(
           statusCode: statusCode,
           message: 'HTTP $statusCode: ${response.reasonPhrase}',
@@ -203,19 +240,16 @@ class ApiService {
   }
 
   Exception _handleError(dynamic error) {
-    if (error is ApiException) {
-      return error;
-    }
+    if (error is ApiException) return error;
 
-    // Handle different types of errors
-    if (error.toString().contains('SocketException')) {
+    if (error is SocketException) {
       return ApiException(
         statusCode: 0,
         message: 'No internet connection. Please check your network.',
       );
     }
 
-    if (error.toString().contains('TimeoutException')) {
+    if (error is TimeoutException) {
       return ApiException(
         statusCode: 408,
         message: 'Request timed out. Please try again.',
@@ -224,7 +258,7 @@ class ApiService {
 
     return ApiException(
       statusCode: -1,
-      message: 'An unexpected error occurred: ${error.toString()}',
+      message: 'Unexpected error: ${error.toString()}',
     );
   }
 
@@ -233,6 +267,9 @@ class ApiService {
   }
 }
 
+// -------------------------
+// Custom Exception
+// -------------------------
 class ApiException implements Exception {
   final int statusCode;
   final String message;
@@ -240,5 +277,5 @@ class ApiException implements Exception {
   ApiException({required this.statusCode, required this.message});
 
   @override
-  String toString() => 'ApiException: $message (Status: $statusCode)';
+  String toString() => 'ApiException($statusCode): $message';
 }

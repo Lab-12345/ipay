@@ -123,7 +123,7 @@ class OTPVerificationScreen extends StatelessWidget {
 
               ElevatedButton(
                 onPressed: authProvider.isLoading ? null : () async {
-                  final success = await otpProvider.verifyOTP(context, authProvider);
+                  final success = await otpProvider.verifyOTP(context);
                   if (success) {
                     Navigator.push(
                       context,
