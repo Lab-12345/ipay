@@ -1,25 +1,17 @@
 import express from 'express';
 import walletController from '../controllers/walletController.js';
-import authMiddleware from '../middleware/authMiddleware.js';
-import razorpayController from '../controllers/razorpayController.js';
+import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// Public route: public key can be exposed safely
-router.get('/razorpay/key', razorpayController.getPublicKey);
-
-// Apply authentication middleware to all remaining wallet routes
-router.use(authMiddleware);
+// Apply authentication middleware to all wallet routes
+router.use(protect);
 
 // Get wallet balance
 router.get('/balance', walletController.getBalance);
 
 // Add money to wallet (non-gateway immediate credit; kept for compatibility)
 router.post('/add-money', walletController.addMoney);
-
-// Razorpay integration routes (require auth)
-router.post('/razorpay/order', razorpayController.createOrder);
-router.post('/razorpay/verify', razorpayController.verifyPayment);
 
 // Get transaction history
 router.get('/transactions', walletController.getTransactions);

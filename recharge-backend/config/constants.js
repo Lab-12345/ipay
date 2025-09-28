@@ -9,7 +9,7 @@ export const API_CONFIG = {
     BASE_URL: process.env.CYRUS_BASE_URL || 'https://cyrusrecharge.in',
     MEMBER_ID: process.env.CYRUS_MEMBER_ID || 'AP338160',
     PIN: process.env.CYRUS_PIN || 'FFC8788E3C',
-    CALLBACK_URL: process.env.CYRUS_CALLBACK_URL || 'https://b98c6da937bd.ngrok-free.app',
+    CALLBACK_URL: process.env.CYRUS_CALLBACK_URL || 'https://ipay-7trh.onrender.com',
   },
   
   // Razorpay Configuration

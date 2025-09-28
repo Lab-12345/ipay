@@ -1,6 +1,6 @@
 import express from 'express';
 import razorpayController from '../controllers/razorpayController.js';
-import authMiddleware from '../middleware/authMiddleware.js';
+import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -8,9 +8,9 @@ const router = express.Router();
 router.get('/razorpay/key', razorpayController.getPublicKey);
 
 // Create Razorpay order (requires authentication)
-router.post('/razorpay/order', authMiddleware, razorpayController.createOrder);
+router.post('/razorpay/order', protect, razorpayController.createOrder);
 
 // Verify Razorpay payment (requires authentication)
-router.post('/razorpay/verify', authMiddleware, razorpayController.verifyPayment);
+router.post('/razorpay/verify', protect, razorpayController.verifyPayment);
 
 export default router;
