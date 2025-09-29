@@ -10,6 +10,7 @@ import '../../../providers/enhanced_auth_provider.dart';
 import '../../common/loading_widget.dart';
 import '../../common/feedback_widgets.dart';
 import 'package:ipay/ui/Home/screens/HomeScreen.dart';
+import 'package:ipay/providers/auth_provider.dart';
 // ...existing code...
 
 class EnhancedOTPVerificationScreen extends StatefulWidget {
@@ -88,6 +89,12 @@ class _EnhancedOTPVerificationScreenState extends State<EnhancedOTPVerificationS
     }
 
     if (success && mounted) {
+      // propagate token to global auth provider for use across app (e.g., wallet)
+      final token = authProvider.token;
+      if (token != null) {
+        context.read<PhoneAuthProvider>().setToken(token);
+      }
+
       FeedbackWidgets.showSuccessToast('Phone verified successfully!');
       Navigator.pushAndRemoveUntil<void>(
         context,

@@ -15,13 +15,22 @@ export const protect = asyncHandler(async (req, res, next) => {
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Find user and attach (without password)
-      req.user = await User.findById(decoded.id).select('-password');
+      // decoded payload is { userId: ... }
+      const userId = decoded?.userId;
+      if (!userId) {
+        res.status(401);
+        throw new Error('Not authorized, invalid token payload');
+      }
 
-      if (!req.user) {
+      // Find user and attach a minimal object expected by controllers
+      const user = await User.findById(userId).select('phone');
+      if (!user) {
         res.status(401);
         throw new Error('Not authorized, user not found');
       }
+
+      // Attach consistent shape: { userId, phone }
+      req.user = { userId, phone: user.phone };
 
       return next();
     } catch (error) {

@@ -13,13 +13,13 @@ class PaymentService {
   String? _cachedRazorpayKey;
 
   // Get Razorpay public key from backend
-  Future<String?> getRazorpayPublicKey() async {
+  Future<String?> getRazorpayPublicKey({String? token}) async {
     try {
       if (_cachedRazorpayKey != null) {
         return _cachedRazorpayKey;
       }
 
-      final response = await _apiService.get('/payment/razorpay/key');
+      final response = await _apiService.get('/api/payment/razorpay/key', token: token);
       
       if (response['success'] == true && response['data'] != null) {
         _cachedRazorpayKey = response['data']['key'];
@@ -38,11 +38,15 @@ class PaymentService {
   }
 
   // Create Razorpay order
-  Future<Map<String, dynamic>?> createRazorpayOrder(double amount) async {
+  Future<Map<String, dynamic>?> createRazorpayOrder(double amount, {required String token}) async {
     try {
-      final response = await _apiService.post('/payment/razorpay/order', {
-        'amount': amount,
-      });
+      final response = await _apiService.post(
+        '/api/payment/razorpay/order',
+        {
+          'amount': amount,
+        },
+        token: token,
+      );
 
       if (response['success'] == true && response['data'] != null) {
         return response['data'];
@@ -59,14 +63,19 @@ class PaymentService {
     required String razorpayPaymentId,
     required String razorpaySignature,
     required double amount,
+    required String token,
   }) async {
     try {
-      final response = await _apiService.post('/payment/razorpay/verify', {
-        'razorpay_order_id': razorpayOrderId,
-        'razorpay_payment_id': razorpayPaymentId,
-        'razorpay_signature': razorpaySignature,
-        'amount': amount,
-      });
+      final response = await _apiService.post(
+        '/api/payment/razorpay/verify',
+        {
+          'razorpay_order_id': razorpayOrderId,
+          'razorpay_payment_id': razorpayPaymentId,
+          'razorpay_signature': razorpaySignature,
+          'amount': amount,
+        },
+        token: token,
+      );
 
       if (response['success'] == true) {
         return response['data'];
@@ -162,6 +171,7 @@ class PaymentService {
   // Complete payment flow (create order -> open payment -> verify payment)
   Future<Map<String, dynamic>?> processPayment({
     required double amount,
+    required String token,
     String? description,
     String? prefill_name,
     String? prefill_email,
@@ -169,7 +179,7 @@ class PaymentService {
   }) async {
     try {
       // Step 1: Create order
-      final orderData = await createRazorpayOrder(amount);
+      final orderData = await createRazorpayOrder(amount, token: token);
       if (orderData == null) {
         throw Exception('Failed to create order');
       }
@@ -194,6 +204,7 @@ class PaymentService {
         razorpayPaymentId: paymentResult['payment_id'],
         razorpaySignature: paymentResult['signature'],
         amount: amount,
+        token: token,
       );
 
       return verificationResult;

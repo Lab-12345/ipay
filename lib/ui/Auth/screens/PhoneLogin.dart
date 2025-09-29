@@ -8,6 +8,7 @@ import 'package:ipay/providers/otp_provider.dart'; // Import the OTP provider
 
 import '../../../core/constants/app_Helper_Function.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/enhanced_auth_provider.dart';
 
 class IPayPhoneAuthScreen extends StatelessWidget {
   const IPayPhoneAuthScreen({super.key});
@@ -100,23 +101,54 @@ class IPayPhoneAuthScreen extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    final fullPhoneNumber="+91${phoneAuth.phoneController.text}";
+                  onPressed: () async {
+                    final phoneNumber = phoneAuth.phoneController.text.trim();
                     if (phoneAuth.isPhoneNumberValid) {
-                      // Correct way to navigate and provide the provider
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) {
-                            return ChangeNotifierProvider(
-                              create: (context) => OtpProvider(),
-                              child: OTPVerificationScreen(
-                                phoneNumber: fullPhoneNumber,
-                              ),
-                            );
-                          },
-                        ),
-                      );
+                      // Show loading
+                      phoneAuth.setLoading(true);
+                      
+                      try {
+                        // Get enhanced auth provider and send OTP
+                        final enhancedAuth = Provider.of<EnhancedAuthProvider>(context, listen: false);
+                        enhancedAuth.setPhoneNumber(phoneNumber);
+                        await enhancedAuth.sendOtp();
+                        
+                        phoneAuth.setLoading(false);
+                        
+                        if (enhancedAuth.errorMessage == null) {
+                          // OTP sent successfully, navigate to OTP screen
+                          final fullPhoneNumber = "+91$phoneNumber";
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) {
+                                return ChangeNotifierProvider(
+                                  create: (context) => OtpProvider(),
+                                  child: OTPVerificationScreen(
+                                    phoneNumber: fullPhoneNumber,
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        } else {
+                          // Show error
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(enhancedAuth.errorMessage!),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        phoneAuth.setLoading(false);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Failed to send OTP: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(

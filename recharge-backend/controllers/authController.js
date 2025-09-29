@@ -1,84 +1,122 @@
 import jwt from 'jsonwebtoken';
 import twilio from 'twilio';
+import asyncHandler from 'express-async-handler';
 import User from '../models/user.js';
 
-/**
- * Send OTP
- */
-export const sendOtp = async (req, res) => {
-  try {
-    const { phone } = req.body;
+// --- Twilio Client Initialization ---
+let twilioClient = null;
+let twilioServiceSid = null;
 
-    if (!phone) {
-      return res.status(400).json({ error: 'Phone number is required' });
-    }
-    if (!phone.startsWith('+')) {
-      return res.status(400).json({ error: 'Phone number must be in E.164 format (e.g., +1234567890)' });
-    }
-
-    // Ensure env vars exist
+const initializeTwilio = () => {
+  if (!twilioClient) {
     if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_SERVICE_SID) {
-      return res.status(500).json({ error: 'Twilio credentials missing' });
+      throw new Error('FATAL_ERROR: Twilio credentials are not defined in .env file.');
     }
-
-    // Create Twilio client when needed
-    const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-
-    const verification = await client.verify.v2
-      .services(process.env.TWILIO_SERVICE_SID)
-      .verifications
-      .create({ to: phone, channel: 'sms' });
-
-    res.status(200).json({ message: 'OTP sent successfully', sid: verification.sid });
-
-  } catch (err) {
-    console.error('❌ Twilio Error:', err);
-    res.status(500).json({ error: err.message || 'Failed to send OTP' });
+    twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+    twilioServiceSid = process.env.TWILIO_SERVICE_SID;
   }
+  return { twilioClient, twilioServiceSid };
 };
 
-/**
- * Verify OTP
- */
-export const verifyOtp = async (req, res) => {
-  try {
-    const { phone, otp } = req.body;
-
-    if (!phone || !otp) {
-      return res.status(400).json({ error: 'Phone and OTP are required' });
-    }
-    if (!phone.startsWith('+')) {
-      return res.status(400).json({ error: 'Phone number must be in E.164 format (e.g., +1234567890)' });
-    }
-
-    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_SERVICE_SID) {
-      return res.status(500).json({ error: 'Twilio credentials missing' });
-    }
-
-    const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-
-    const verification = await client.verify.v2
-      .services(process.env.TWILIO_SERVICE_SID)
-      .verificationChecks
-      .create({ to: phone, code: otp });
-
-    if (verification.status === 'approved') {
-      let user = await User.findOne({ phone });
-      if (!user) {
-        user = await User.create({ phone, verified: true });
-      } else {
-        user.verified = true;
-        await user.save();
-      }
-
-      const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-      return res.json({ message: 'Phone verified', token, userId: user._id });
-    } else {
-      return res.status(400).json({ error: 'Invalid OTP' });
-    }
-
-  } catch (err) {
-    console.error('❌ OTP verification error:', err);
-    res.status(500).json({ error: err.message || 'OTP verification failed' });
-  }
+// --- Utility Functions ---
+const generateToken = (userId) => {
+  return jwt.sign({ userId }, process.env.JWT_SECRET, {
+    expiresIn: '30d',
+  });
 };
+
+// --- Controller Functions ---
+
+/**
+ * @desc    Resend OTP to a phone number (alias of send-otp)
+ * @route   POST /api/auth/resend-otp
+ * @access  Public
+ */
+export const resendOtp = asyncHandler(async (req, res) => {
+  const { phone } = req.body;
+
+  if (!phone || !/^\+[1-9]\d{1,14}$/.test(phone)) {
+    res.status(400);
+    throw new Error('Valid E.164 format phone number is required.');
+  }
+
+  const { twilioClient, twilioServiceSid } = initializeTwilio();
+  const verification = await twilioClient.verify.v2
+    .services(twilioServiceSid)
+    .verifications.create({ to: phone, channel: 'sms' });
+
+  res.status(200).json({ success: true, message: 'OTP resent successfully', data: { sid: verification.sid } });
+});
+
+/**
+ * @desc    Send OTP to a phone number
+ * @route   POST /api/auth/send-otp
+ * @access  Public
+ */
+export const sendOtp = asyncHandler(async (req, res) => {
+  const { phone } = req.body;
+
+  // Basic validation
+  if (!phone || !/^\+[1-9]\d{1,14}$/.test(phone)) {
+    res.status(400);
+    throw new Error('Valid E.164 format phone number is required.');
+  }
+
+  const { twilioClient, twilioServiceSid } = initializeTwilio();
+  const verification = await twilioClient.verify.v2
+    .services(twilioServiceSid)
+    .verifications.create({ to: phone, channel: 'sms' });
+
+  res.status(200).json({ success: true, message: 'OTP sent successfully', data: { sid: verification.sid } });
+});
+
+/**
+ * @desc    Verify OTP and log in or register user
+ * @route   POST /api/auth/verify-otp
+ * @access  Public
+ */
+export const verifyOtp = asyncHandler(async (req, res) => {
+  const { phone, otp } = req.body;
+
+  // Basic validation
+  if (!phone || !/^\+[1-9]\d{1,14}$/.test(phone)) {
+    res.status(400);
+    throw new Error('Valid E.164 format phone number is required.');
+  }
+  if (!otp || !/^\d{6}$/.test(otp)) {
+    res.status(400);
+    throw new Error('A 6-digit OTP is required.');
+  }
+
+  const { twilioClient, twilioServiceSid } = initializeTwilio();
+  const verificationCheck = await twilioClient.verify.v2
+    .services(twilioServiceSid)
+    .verificationChecks.create({ to: phone, code: otp });
+
+  if (verificationCheck.status !== 'approved') {
+    res.status(400);
+    throw new Error('Invalid or expired OTP.');
+  }
+
+  // Find user or create a new one if they don't exist (upsert)
+  const user = await User.findOneAndUpdate(
+    { phone },
+    { $set: { verified: true } },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  if (user) {
+    res.status(200).json({
+      success: true,
+      message: 'Phone number verified successfully.',
+      data: {
+        token: generateToken(user._id),
+        userId: user._id,
+        isNewUser: user.isNew,
+      },
+    });
+  } else {
+    res.status(500);
+    throw new Error('Could not verify user.');
+  }
+});

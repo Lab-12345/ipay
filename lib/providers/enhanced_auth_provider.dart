@@ -80,16 +80,27 @@ class EnhancedAuthProvider extends ChangeNotifier {
         throw Exception('Please enter a valid 6-digit OTP');
       }
 
+      // Ensure E.164 format
+      String? phone = _phoneNumber;
+      if (phone == null || phone.isEmpty) {
+        throw Exception('Phone number is required');
+      }
+      if (!phone.startsWith('+')) {
+        if (phone.length == 10) {
+          phone = '+91$phone';
+        } else {
+          throw Exception('Provide phone in E.164 format, e.g., +911234567890');
+        }
+      }
+
       // Call API to verify OTP
-      final response = await _apiService.post('/auth/verify-otp', {
-        'phone': _phoneNumber,
-        'otp': otpToVerify,
-      });
+      final response = await _apiService.verifyOtp(phone, otpToVerify);
 
       if (response['success'] == true) {
         // Store auth token if provided
-        if (response['data'] != null && response['data']['token'] != null) {
-          _token = response['data']['token'];
+        final data = response['data'] ?? {};
+        if (data['token'] != null) {
+          _token = data['token'];
           await _storeAuthToken(_token!);
           notifyListeners();
         }
@@ -114,8 +125,21 @@ class EnhancedAuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _apiService.post('/auth/resend-otp', {
-        'phone': _phoneNumber,
+      // Ensure E.164 format
+      String? phone = _phoneNumber;
+      if (phone == null || phone.isEmpty) {
+        throw Exception('Phone number is required');
+      }
+      if (!phone.startsWith('+')) {
+        if (phone.length == 10) {
+          phone = '+91$phone';
+        } else {
+          throw Exception('Provide phone in E.164 format, e.g., +911234567890');
+        }
+      }
+
+      final response = await _apiService.post('/api/auth/resend-otp', {
+        'phone': phone,
       });
 
       if (response['success'] == true) {
@@ -127,6 +151,39 @@ class EnhancedAuthProvider extends ChangeNotifier {
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> sendOtp() async {
+    if (_isLoading) return;
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      // Ensure E.164 format: assuming India +91 when 10-digit local input
+      String? phone = _phoneNumber;
+      if (phone == null || phone.isEmpty) {
+        throw Exception('Phone number is required');
+      }
+      if (!phone.startsWith('+')) {
+        // prepend +91 for 10-digit numbers
+        if (phone.length == 10) {
+          phone = '+91$phone';
+        } else {
+          throw Exception('Provide phone in E.164 format, e.g., +911234567890');
+        }
+      }
+
+      final resp = await _apiService.sendOtp(phone);
+      if (resp['success'] != true) {
+        throw Exception(resp['message'] ?? 'Failed to send OTP');
+      }
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {
       _isLoading = false;
       notifyListeners();

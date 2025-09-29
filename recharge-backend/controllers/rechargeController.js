@@ -1,176 +1,108 @@
+import asyncHandler from 'express-async-handler';
 import cyrusService from '../services/cyrusService.js';
-import { STATUS_CODES, RECHARGE_STATUS, API_CONFIG } from '../config/constants.js';
+import { API_CONFIG } from '../config/constants.js';
 
-class RechargeController {
-  // Get account balance
-  async getBalance(req, res) {
-    try {
-      const balance = await cyrusService.getBalance();
-      res.status(STATUS_CODES.SUCCESS).json({
-        success: true,
-        data: balance
-      });
-    } catch (error) {
-      console.error('Balance Error:', error);
-      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: 'Failed to get balance',
-        error: error.message
-      });
-    }
+/**
+ * @desc    Get account balance from Cyrus
+ * @route   GET /api/recharge/balance
+ * @access  Private
+ */
+export const getBalance = asyncHandler(async (req, res) => {
+  const balance = await cyrusService.getBalance();
+  res.status(200).json({ success: true, data: balance });
+});
+
+/**
+ * @desc    Get mobile operators list from Cyrus
+ * @route   GET /api/recharge/operators
+ * @access  Private
+ */
+export const getOperators = asyncHandler(async (req, res) => {
+  const operators = await cyrusService.getOperators();
+  res.status(200).json({ success: true, data: operators });
+});
+
+/**
+ * @desc    Get telecom circles list from Cyrus
+ * @route   GET /api/recharge/circles
+ * @access  Private
+ */
+export const getCircles = asyncHandler(async (req, res) => {
+  const circles = await cyrusService.getCircles();
+  res.status(200).json({ success: true, data: circles });
+});
+
+/**
+ * @desc    Get recharge plans for a specific operator and circle
+ * @route   GET /api/recharge/plans
+ * @access  Private
+ */
+export const getPlans = asyncHandler(async (req, res) => {
+  const { operatorId, circleId } = req.query;
+
+  if (!operatorId || !circleId) {
+    res.status(400);
+    throw new Error('Operator ID and Circle ID are required query parameters.');
   }
 
-  // Get operators list
-  async getOperators(req, res) {
-    try {
-      console.log('Fetching operators from Cyrus API...');
-      const operators = await cyrusService.getOperators();
-      console.log('Successfully fetched operators');
-      res.status(STATUS_CODES.SUCCESS).json({
-        success: true,
-        data: operators
-      });
-    } catch (error) {
-      console.error('Operators Error:', error);
-      console.error('Error details:', {
-        message: error.message,
-        stack: error.stack,
-        response: error.response?.data || 'No response data'
-      });
-      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: 'Failed to get operators',
-        error: error.message
-      });
-    }
+  const plans = await cyrusService.getPlans(operatorId, circleId);
+  res.status(200).json({ success: true, data: plans });
+});
+
+/**
+ * @desc    Perform a mobile recharge
+ * @route   POST /api/recharge/perform
+ * @access  Private
+ */
+export const performRecharge = asyncHandler(async (req, res) => {
+  const { mobileNumber, operatorId, circleId, amount, callbackUrl } = req.body;
+
+  if (!mobileNumber || !operatorId || !circleId || !amount) {
+    res.status(400);
+    throw new Error('Mobile number, operator ID, circle ID, and amount are required.');
   }
 
-  // Get circles list
-  async getCircles(req, res) {
-    try {
-      console.log('Fetching circles from Cyrus API...');
-      const circles = await cyrusService.getCircles();
-      console.log('Successfully fetched circles');
-      res.status(STATUS_CODES.SUCCESS).json({
-        success: true,
-        data: circles
-      });
-    } catch (error) {
-      console.error('Circles Error:', error);
-      console.error('Error details:', {
-        message: error.message,
-        stack: error.stack,
-        response: error.response?.data || 'No response data'
-      });
-      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: 'Failed to get circles',
-        error: error.message
-      });
-    }
+  if (isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+    res.status(400);
+    throw new Error('Amount must be a positive number.');
   }
 
-  // Get recharge plans
-  async getPlans(req, res) {
-    try {
-      const { operatorId, circleId } = req.query;
-      
-      if (!operatorId || !circleId) {
-        return res.status(STATUS_CODES.BAD_REQUEST).json({
-          success: false,
-          message: 'Operator ID and Circle ID are required'
-        });
-      }
+  // Use provided callback URL or fall back to configured default
+  const finalCallbackUrl = callbackUrl || API_CONFIG.CYRUS.CALLBACK_URL;
+  const clientId = `RECHARGE_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-      const plans = await cyrusService.getPlans(operatorId, circleId);
-      res.status(STATUS_CODES.SUCCESS).json({
-        success: true,
-        data: plans
-      });
-    } catch (error) {
-      console.error('Plans Error:', error);
-      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: 'Failed to get plans',
-        error: error.message
-      });
-    }
+  const rechargeResult = await cyrusService.performRecharge(
+    mobileNumber,
+    operatorId,
+    circleId,
+    amount,
+    clientId,
+    finalCallbackUrl
+  );
+
+  res.status(201).json({ // 201 Created is more appropriate for a new resource
+    success: true,
+    data: {
+      ...rechargeResult,
+      clientId: clientId,
+      callbackUrl: finalCallbackUrl,
+    },
+  });
+});
+
+/**
+ * @desc    Check the status of a recharge
+ * @route   GET /api/recharge/status/:clientId
+ * @access  Private
+ */
+export const getRechargeStatus = asyncHandler(async (req, res) => {
+  const { clientId } = req.params;
+
+  if (!clientId) {
+    res.status(400);
+    throw new Error('Client ID is required as a URL parameter.');
   }
 
-  // Perform recharge
-  async performRecharge(req, res) {
-    try {
-      const { mobileNumber, operatorId, circleId, amount, callbackUrl } = req.body;
-
-      // Use provided callback URL or fall back to configured default
-      const finalCallbackUrl = callbackUrl || API_CONFIG.CYRUS.CALLBACK_URL;
-
-      console.log('Received recharge request:', { mobileNumber, operatorId, circleId, amount, callbackUrl: finalCallbackUrl });
-
-      if (!mobileNumber || !operatorId || !circleId || !amount) {
-        console.log('Bad request: Missing required fields');
-        return res.status(STATUS_CODES.BAD_REQUEST).json({
-          success: false,
-          message: 'Mobile number, operator ID, circle ID, and amount are required'
-        });
-      }
-
-      // Generate unique client ID
-      const clientId = `RECHARGE_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-      const rechargeResult = await cyrusService.performRecharge(
-        mobileNumber,
-        operatorId,
-        circleId,
-        amount,
-        clientId,
-        finalCallbackUrl
-      );
-
-      res.status(STATUS_CODES.SUCCESS).json({
-        success: true,
-        data: {
-          ...rechargeResult,
-          clientId: clientId,
-          callbackUrl: finalCallbackUrl
-        }
-      });
-    } catch (error) {
-      console.error('Recharge Error:', error);
-      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: 'Failed to perform recharge',
-        error: error.message
-      });
-    }
-  }
-
-  // Check recharge status
-  async getRechargeStatus(req, res) {
-    try {
-      const { clientId } = req.params;
-      
-      if (!clientId) {
-        return res.status(STATUS_CODES.BAD_REQUEST).json({
-          success: false,
-          message: 'Client ID is required'
-        });
-      }
-
-      const status = await cyrusService.getRechargeStatus(clientId);
-      res.status(STATUS_CODES.SUCCESS).json({
-        success: true,
-        data: status
-      });
-    } catch (error) {
-      console.error('Status Error:', error);
-      res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: 'Failed to get recharge status',
-        error: error.message
-      });
-    }
-  }
-}
-
-export default new RechargeController();
+  const status = await cyrusService.getRechargeStatus(clientId);
+  res.status(200).json({ success: true, data: status });
+});

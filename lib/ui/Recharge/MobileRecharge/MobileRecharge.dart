@@ -49,13 +49,13 @@ class _MobilerechargeState extends State<Mobilerecharge> {
   Future<void> fetchCircles() async {
     try {
       final response = await ApiService().getCircles();
-      if (response != null && response['Status'] == "1") {
+      if (response != null && response['success'] == true) {
         setState(() {
-          circles = response['data']; // expected format from API
+          circles = response['data'];
         });
       } else {
         setState(() {
-          error = 'Failed to load circles';
+          error = response['message'] ?? 'Failed to load circles';
         });
       }
     } catch (e) {

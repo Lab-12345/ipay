@@ -139,7 +139,7 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> getRazorpayPublicKey({String? token}) async {
-    return await get('/api/wallet/razorpay/key', token: token);
+    return await get('/api/payment/razorpay/key', token: token);
   }
 
   Future<Map<String, dynamic>> createRazorpayOrder({
@@ -147,7 +147,7 @@ class ApiService {
     required double amount,
   }) async {
     return await post(
-      '/api/wallet/razorpay/order',
+      '/api/payment/razorpay/order',
       {'amount': amount},
       token: token,
     );
@@ -161,7 +161,7 @@ class ApiService {
     required double amount,
   }) async {
     return await post(
-      '/api/wallet/razorpay/verify',
+      '/api/payment/razorpay/verify',
       {
         'razorpay_order_id': orderId,
         'razorpay_payment_id': paymentId,

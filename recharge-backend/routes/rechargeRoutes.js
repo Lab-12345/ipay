@@ -1,24 +1,31 @@
 import express from 'express';
-import rechargeController from '../controllers/rechargeController.js';
+import { 
+  getBalance, 
+  getOperators, 
+  getCircles, 
+  getPlans, 
+  performRecharge, 
+  getRechargeStatus 
+} from '../controllers/rechargeController.js';
 
 const router = express.Router();
 
 // Get account balance
-router.get('/balance', rechargeController.getBalance);
+router.get('/balance', getBalance);
 
 // Get operators list
-router.get('/operators', rechargeController.getOperators);
+router.get('/operators', getOperators);
 
 // Get circles list
-router.get('/circles', rechargeController.getCircles);
+router.get('/circles', getCircles);
 
 // Get recharge plans
-router.get('/plans', rechargeController.getPlans);
+router.get('/plans', getPlans);
 
 // Perform recharge
-router.post('/recharge', rechargeController.performRecharge);
+router.post('/recharge', performRecharge);
 
 // Check recharge status
-router.get('/status/:clientId', rechargeController.getRechargeStatus);
+router.get('/status/:clientId', getRechargeStatus);
 
 export default router;

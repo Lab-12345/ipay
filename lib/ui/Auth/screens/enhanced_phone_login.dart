@@ -343,17 +343,20 @@ class _EnhancedPhoneLoginScreenState extends State<EnhancedPhoneLoginScreen> {
       final phoneNumber = _phoneController.text.trim();
 
       if (phoneNumber.isNotEmpty) {
-        // Set phone number in provider and navigate to OTP screen
+        // Set phone number and initiate OTP send
         authProvider.setPhoneNumber(phoneNumber);
+        await authProvider.sendOtp();
 
-        if (mounted) {
-          // Navigate to OTP verification screen
+        if (authProvider.errorMessage == null && mounted) {
+          // Navigate to OTP verification screen on success
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => const EnhancedOTPVerificationScreen(),
             ),
           );
+        } else if (authProvider.errorMessage != null && mounted) {
+          FeedbackWidgets.showErrorToast(authProvider.errorMessage!);
         }
       } else {
         FeedbackWidgets.showErrorToast('Please enter a valid phone number');
