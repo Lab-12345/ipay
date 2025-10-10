@@ -1,22 +1,25 @@
 import asyncHandler from 'express-async-handler';
 import cyrusService from '../services/cyrusService.js';
 import { API_CONFIG } from '../config/constants.js';
+import walletController from './walletController.js';
 
-/**
- * @desc    Get account balance from Cyrus
- * @route   GET /api/recharge/balance
- * @access  Private
- */
-export const getBalance = asyncHandler(async (req, res) => {
-  const balance = await cyrusService.getBalance();
+// Get user wallet balance
+export const walletBalance = asyncHandler(async (req, res) => {
+  const { userId } = req.params; // Assuming userId from URL or JWT
+  if (!userId) {
+    res.status(400);
+    throw new Error('User ID is required');
+  }
+  const balance = await walletController.getBalance(req, res, userId); // Pass userId
   res.status(200).json({ success: true, data: balance });
 });
 
-/**
- * @desc    Get mobile operators list from Cyrus
- * @route   GET /api/recharge/operators
- * @access  Private
- */
+// Get Cyrus wallet balance (for reseller, not user-specific)
+export const getBalance = asyncHandler(async (req, res) => {
+  const balance = await cyrusService.getBalance(); // Cyrus reseller balance
+  res.status(200).json({ success: true, data: balance });
+});
+
 export const getOperators = asyncHandler(async (req, res) => {
   const operators = await cyrusService.getOperators();
   res.status(200).json({ success: true, data: operators });
@@ -55,39 +58,77 @@ export const getPlans = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const performRecharge = asyncHandler(async (req, res) => {
-  const { mobileNumber, operatorId, circleId, amount, callbackUrl } = req.body;
+  const { mobileNumber, operatorId, circleId, amount, callbackUrl, userId, planId } = req.body; // Add planId for plan-based amount
 
-  if (!mobileNumber || !operatorId || !circleId || !amount) {
+  // Input validation
+  if (!mobileNumber || !operatorId || !circleId || !userId) {
     res.status(400);
-    throw new Error('Mobile number, operator ID, circle ID, and amount are required.');
+    throw new Error('Mobile number, operator ID, circle ID, and userId are required.');
   }
 
-  if (isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+  // Fetch plan amount if planId is provided, otherwise use amount
+  let rechargeAmount;
+  if (planId) {
+    const plans = await cyrusService.getPlans(operatorId, circleId);
+    const selectedPlan = plans.find(plan => plan.id === planId); // Adjust 'id' based on Cyrus plan structure
+    if (!selectedPlan) {
+      res.status(400);
+      throw new Error('Invalid plan ID.');
+    }
+    rechargeAmount = parseFloat(selectedPlan.amount); // Assume plan has an 'amount' field
+  } else if (amount) {
+    rechargeAmount = parseFloat(amount);
+  } else {
     res.status(400);
-    throw new Error('Amount must be a positive number.');
+    throw new Error('Either planId or amount is required.');
   }
 
-  // Use provided callback URL or fall back to configured default
+  if (isNaN(rechargeAmount) || rechargeAmount <= 0) {
+    res.status(400);
+    throw new Error('Recharge amount must be a positive number.');
+  }
+
+  // User wallet validation
+  const userBalance = await walletController.getBalance(req, res, userId); // Fetch current balance
+  if (userBalance < rechargeAmount) {
+    res.status(400);
+    throw new Error(`Insufficient balance. Available: ₹${userBalance.toFixed(2)}`);
+  }
+
+  // Proceed with recharge
   const finalCallbackUrl = callbackUrl || API_CONFIG.CYRUS.CALLBACK_URL;
   const clientId = `RECHARGE_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-  const rechargeResult = await cyrusService.performRecharge(
-    mobileNumber,
-    operatorId,
-    circleId,
-    amount,
-    clientId,
-    finalCallbackUrl
-  );
+  try {
+    const rechargeResult = await cyrusService.performRecharge(
+      mobileNumber,
+      operatorId,
+      circleId,
+      rechargeAmount, // Use plan amount or provided amount
+      clientId,
+      finalCallbackUrl
+    );
 
-  res.status(201).json({ // 201 Created is more appropriate for a new resource
-    success: true,
-    data: {
-      ...rechargeResult,
-      clientId: clientId,
-      callbackUrl: finalCallbackUrl,
-    },
-  });
+    if (!rechargeResult.success) {
+      throw new Error(rechargeResult.message || 'Recharge failed');
+    }
+
+    // Deduct from user wallet after success (use transaction if available)
+    await walletController.deductBalance(req, res, userId, rechargeAmount); // Use rechargeAmount
+
+    res.status(201).json({
+      success: true,
+      data: {
+        ...rechargeResult,
+        clientId,
+        callbackUrl: finalCallbackUrl,
+        newBalance: userBalance - rechargeAmount, // Update after deduction
+      },
+    });
+  } catch (error) {
+    console.error('Recharge Error:', error.message); // Log for Railway
+    res.status(500).json({ success: false, message: 'Internal server error—check logs' });
+  }
 });
 
 /**
@@ -107,5 +148,15 @@ export const getRechargeStatus = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, data: status });
 });
 
+// Export as UserBalance (capitalized)
+export const UserBalance = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
 
-export userBla
+  if (!userId) {
+    res.status(400);
+    throw new Error('User ID is required as a URL parameter.');
+  }
+
+  const balance = await walletController.getBalance(req, res, userId); // Use walletController
+  res.status(200).json({ success: true, data: balance });
+});
