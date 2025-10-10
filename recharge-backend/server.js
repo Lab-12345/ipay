@@ -18,6 +18,7 @@ import walletRoutes from './routes/walletRoutes.js';
 const app = express();
 
 // --- Core Middleware ---
+app.set('trust proxy', 1);
 
 // Set security-related HTTP response headers
 app.use(helmet());
