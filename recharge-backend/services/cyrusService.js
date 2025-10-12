@@ -1,119 +1,115 @@
+// services/cyrusService.js
+import axios from 'axios';
 import { API_CONFIG, CYRUS_ENDPOINTS } from '../config/constants.js';
 
 class CyrusService {
   constructor() {
-    this.baseURL = API_CONFIG.CYRUS.BASE_URL;
+    this.baseUrl = API_CONFIG.CYRUS.BASE_URL;
     this.memberId = API_CONFIG.CYRUS.MEMBER_ID;
     this.pin = API_CONFIG.CYRUS.PIN;
+    this.callbackUrl = API_CONFIG.CYRUS.CALLBACK_URL;
   }
 
-  // Helper method to make API requests
-  async makeRequest(endpoint, method, params = {}) {
+  // 🔹 Generic request handler
+  async makeRequest(endpoint, method, extraParams = {}) {
     try {
-      // Construct the full URL properly
-      const fullUrl = `${this.baseURL}${endpoint}`;
-      const url = new URL(fullUrl);
-
-      // Add common parameters
-      const requestParams = {
+      const url = `${this.baseUrl}/${endpoint}`;
+      const params = {
         memberid: this.memberId,
         pin: this.pin,
         Method: method,
-        ...params
+        ...extraParams,
       };
 
-      // Add parameters to URL
-      Object.keys(requestParams).forEach(key => {
-        url.searchParams.append(key, requestParams[key]);
-      });
+      console.log(`➡️ Requesting: ${url}`, params);
 
-      console.log(`Making request to: ${url.toString()}`);
-
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data;
+      const response = await axios.get(url, { params });
+      return response.data;
     } catch (error) {
-      console.error('Cyrus API Error:', error);
+      console.error(`❌ Cyrus API error (${endpoint}):`, error.message);
       throw error;
     }
   }
 
-  // Get account balance
+  // 🔹 Recharge API
+  async recharge({ number, amount, operator, circle, referenceId }) {
+    return await this.makeRequest(CYRUS_ENDPOINTS.RECHARGE, 'recharge', {
+      mobile: number,
+      amount,
+      operator,
+      circle,
+      refid: referenceId,
+      callbackurl: this.callbackUrl,
+    });
+  }
+
+  // 🔹 Get balance
   async getBalance() {
-    return await this.makeRequest(CYRUS_ENDPOINTS.OPERATOR_CIRCLE, 'getbalance');
+    return await this.makeRequest(CYRUS_ENDPOINTS.BALANCE, 'getbalance');
   }
 
-  // Get operators list
+  // 🔹 Get operators
   async getOperators() {
-    return await this.makeRequest(CYRUS_ENDPOINTS.OPERATOR_CIRCLE, 'getoperator');
+    return await this.makeRequest(CYRUS_ENDPOINTS.OPERATORS, 'getoperator');
   }
 
-  // Get circles list
+  // 🔹 Get circles
   async getCircles() {
-    return await this.makeRequest(CYRUS_ENDPOINTS.OPERATOR_CIRCLE, 'getcircle');
+    return await this.makeRequest(CYRUS_ENDPOINTS.CIRCLES, 'getcircle');
   }
 
-  // Get recharge plans
-  async getPlans(operatorId, circleId) {
-    return await this.makeRequest(CYRUS_ENDPOINTS.PLANS, 'getplans', {
-      OperatorID: operatorId,
-      CircleID: circleId
+  // 🔹 Get recharge status
+  async getRechargeStatus(referenceId) {
+    return await this.makeRequest(CYRUS_ENDPOINTS.STATUS, 'rechargestatus', {
+      refid: referenceId,
     });
   }
 
-  // Perform recharge
-  async performRecharge(mobileNumber, operatorId, circleId, amount, clientId, callbackUrl = null) {
-    const params = {
-      number: mobileNumber,
-      operator: operatorId,
-      circle: circleId,
-      amount: amount,
-      usertx: clientId,
-      format: 'json',
-      RechargeMode: 1
-    };
-
-    // Add callback URL if provided
-    if (callbackUrl) {
-      params.callbackurl = callbackUrl;
-    }
-
-    return await this.makeRequest(CYRUS_ENDPOINTS.RECHARGE, 'recharge', params);
-  }
-
-  // Check recharge status
-  async getRechargeStatus(clientId) {
-    return await this.makeRequest(CYRUS_ENDPOINTS.STATUS, 'getstatus', {
-      transid: clientId
+  // 🔹 Get plans
+  async getPlans(operator, circle) {
+    return await this.makeRequest(CYRUS_ENDPOINTS.PLANS, 'getplan', {
+      operator,
+      circle,
     });
   }
 
-  // Validate API configuration
-  validateConfig() {
-    // Allow default values for development/testing
-    if (!this.memberId) {
-      throw new Error('Cyrus Member ID is not configured');
-    }
+  // 🔹 Get operator by mobile number (MNP detection)
+  async getOperatorByNumber(number) {
+    return await this.makeRequest('CyrusOperatorFatchAPI.aspx', 'getoperatorbymnp', {
+      mobile: number,
+    });
+  }
 
-    if (!this.pin) {
-      throw new Error('Cyrus PIN is not configured');
-    }
+  // 🔹 Get recharge offers (Roffers)
+  async getRechargeOffers(operator, mobile, offerType = 'roffer') {
+    // Note: This uses a different param structure based on the endpoint
+    try {
+      const url = `${this.baseUrl}/CyrusROfferAPI.aspx`;
+      const params = {
+        MerchantID: this.memberId, // Assuming MerchantID is same as memberId
+        MerchantKey: this.pin, // Assuming MerchantKey is same as pin
+        MethodName: 'roffer',
+        operator,
+        mobile,
+        offer: offerType,
+      };
 
-    if (!this.baseURL) {
-      throw new Error('Cyrus Base URL is not configured');
-    }
+      console.log(`➡️ Requesting Roffers: ${url}`, params);
 
-    return true;
+      const response = await axios.get(url, { params });
+      return response.data;
+    } catch (error) {
+      console.error(`❌ Cyrus Roffers API error:`, error.message);
+      throw error;
+    }
+  }
+
+  // 🔹 Raise dispute
+  async raiseDispute(refid, remarks) {
+    return await this.makeRequest(CYRUS_ENDPOINTS.DISPUTE, 'raiseDispute', {
+      refid,
+      remarks,
+    });
   }
 }
 
