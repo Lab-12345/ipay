@@ -33,49 +33,91 @@ class CyrusService {
 
   // 🔹 Recharge API
   async recharge({ number, amount, operator, circle, referenceId }) {
-    return await this.makeRequest(CYRUS_ENDPOINTS.RECHARGE, 'recharge', {
-      mobile: number,
-      amount,
+    const url = 'https://cyrusrecharge.in/services_cyapi/recharge_cyapi.aspx';
+    const params = {
+      memberid: this.memberId,
+      pin: this.pin,
+      number,
       operator,
       circle,
-      refid: referenceId,
-      callbackurl: this.callbackUrl,
-    });
+      amount,
+      usertx: referenceId,
+      format: 'json',
+      RechargeMode: 1,
+    };
+
+    console.log(`➡️ Requesting Recharge: ${url}`, params);
+
+    try {
+      const response = await axios.get(url, { params });
+      return response.data;
+    } catch (error) {
+      console.error(`❌ Cyrus Recharge API error:`, error.message);
+      throw error;
+    }
   }
 
   // 🔹 Get balance
   async getBalance() {
-    return await this.makeRequest(CYRUS_ENDPOINTS.BALANCE, 'getbalance');
+    return await this.makeRequest('api/GetOperator.aspx', 'getbalance');
   }
 
   // 🔹 Get operators
   async getOperators() {
-    return await this.makeRequest(CYRUS_ENDPOINTS.OPERATORS, 'getoperator');
+    return await this.makeRequest('api/GetOperator.aspx', 'getoperator');
   }
 
   // 🔹 Get circles
   async getCircles() {
-    return await this.makeRequest(CYRUS_ENDPOINTS.CIRCLES, 'getcircle');
+    return await this.makeRequest('api/GetOperator.aspx', 'getcircle');
   }
 
   // 🔹 Get recharge status
   async getRechargeStatus(referenceId) {
-    return await this.makeRequest(CYRUS_ENDPOINTS.STATUS, 'rechargestatus', {
-      refid: referenceId,
-    });
+    const url = 'http://cyrusrecharge.in/api/rechargestatus.aspx';
+    const params = {
+      memberid: this.memberId,
+      pin: this.pin,
+      transid: referenceId,
+    };
+
+    console.log(`➡️ Requesting Status: ${url}`, params);
+
+    try {
+      const response = await axios.get(url, { params });
+      return response.data;
+    } catch (error) {
+      console.error(`❌ Cyrus Status API error:`, error.message);
+      throw error;
+    }
   }
 
   // 🔹 Get plans
-  async getPlans(operator, circle) {
-    return await this.makeRequest(CYRUS_ENDPOINTS.PLANS, 'getplan', {
-      operator,
-      circle,
-    });
+  async getPlans(operator, circle, mobile) {
+    const url = 'https://cyrusrecharge.in/API/CyrusPlanFatchAPI.aspx';
+    const params = {
+      APIID: this.memberId,
+      PASSWORD: this.pin,
+      Operator_Code: operator,
+      Circle_Code: circle,
+      MobileNumber: mobile,
+      data: 'ALL',
+    };
+
+    console.log(`➡️ Requesting Plans: ${url}`, params);
+
+    try {
+      const response = await axios.get(url, { params });
+      return response.data;
+    } catch (error) {
+      console.error(`❌ Cyrus Plans API error:`, error.message);
+      throw error;
+    }
   }
 
   // 🔹 Get operator by mobile number (MNP detection)
   async getOperatorByNumber(number) {
-    return await this.makeRequest('CyrusOperatorFatchAPI.aspx', 'getoperatorbymnp', {
+    return await this.makeRequest('API/CyrusOperatorFatchAPI.aspx', 'getoperatorbymnp', {
       mobile: number,
     });
   }
@@ -106,10 +148,23 @@ class CyrusService {
 
   // 🔹 Raise dispute
   async raiseDispute(refid, remarks) {
-    return await this.makeRequest(CYRUS_ENDPOINTS.DISPUTE, 'raiseDispute', {
-      refid,
-      remarks,
-    });
+    const url = 'https://cyrusrecharge.in/api/api_raise_dispute.aspx';
+    const params = {
+      memberid: this.memberId,
+      pin: this.pin,
+      transid: refid,
+      reason: remarks,
+    };
+
+    console.log(`➡️ Requesting Dispute: ${url}`, params);
+
+    try {
+      const response = await axios.get(url, { params });
+      return response.data;
+    } catch (error) {
+      console.error(`❌ Cyrus Dispute API error:`, error.message);
+      throw error;
+    }
   }
 }
 
