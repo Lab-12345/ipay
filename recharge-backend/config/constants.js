@@ -1,4 +1,3 @@
-// API Configuration Constants
 import dotenv from 'dotenv';
 // Ensure env is loaded even when this module is imported before server.js
 dotenv.config();
@@ -9,7 +8,7 @@ export const API_CONFIG = {
     BASE_URL: process.env.CYRUS_BASE_URL || 'https://cyrusrecharge.in',
     MEMBER_ID: process.env.CYRUS_MEMBER_ID || 'AP338160',
     PIN: process.env.CYRUS_PIN || 'FFC8788E3C',
-    CALLBACK_URL: process.env.CYRUS_CALLBACK_URL || 'https://ipay-7trh.onrender.com',
+    CALLBACK_URL: process.env.CYRUS_CALLBACK_URL,
   },
   
   // Razorpay Configuration
@@ -45,12 +44,17 @@ export const API_CONFIG = {
 
 // API Endpoints for Cyrus Recharge
 export const CYRUS_ENDPOINTS = {
-  RECHARGE: 'services_cyapi/recharge_cyapi.aspx',
-  BALANCE: 'GetOperator.aspx', // Same endpoint as operators/circles
-  STATUS: 'rechargestatus.aspx',
-  PLANS: 'Plans.aspx',
-  OPERATOR_CIRCLE: 'GetOperator.aspx', // Same endpoint for operators, circles, and balance
-  DISPUTE: 'api/api_raise_dispute.aspx', // For raising disputes
+  RECHARGE: '/services_cyapi/recharge_cyapi.aspx',
+  BALANCE: '/api/GetOperator.aspx',
+  AEPS_BALANCE: '/api/GetOperator.aspx',
+  STATUS: '/api/rechargestatus.aspx',
+  PLANS: '/API/CyrusPlanFatchAPI.aspx',
+  OPERATOR_CIRCLE: '/api/GetOperator.aspx',
+  DISPUTE: '/api/api_raise_dispute.aspx',
+  MNP: '/API/CyrusOperatorFatchAPI.aspx',
+  ROFFERS: '/api/CyrusROfferAPI.aspx',
+  DTH_INFO: '/api/CyrusROfferAPI.aspx',
+  BILL_FETCH: '/api/BillFetch_Cyrus_BA.aspx', // For BBPS bill fetch and biller info (POST)
 };
 
 // Response Status Codes
