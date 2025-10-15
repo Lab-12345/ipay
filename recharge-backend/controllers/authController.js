@@ -12,8 +12,14 @@ const initializeTwilio = () => {
     if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_SERVICE_SID) {
       throw new Error('FATAL_ERROR: Twilio credentials are not defined in .env file.');
     }
-    twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-    twilioServiceSid = process.env.TWILIO_SERVICE_SID;
+    try {
+      twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+      twilioServiceSid = process.env.TWILIO_SERVICE_SID;
+      console.log('Twilio client initialized successfully with Service SID:', twilioServiceSid.substring(0, 4) + '...');
+    } catch (error) {
+      console.error('Twilio initialization failed:', error.message);
+      throw new Error(`Twilio initialization error: ${error.message}`);
+    }
   }
   return { twilioClient, twilioServiceSid };
 };
@@ -41,11 +47,27 @@ export const resendOtp = asyncHandler(async (req, res) => {
   }
 
   const { twilioClient, twilioServiceSid } = initializeTwilio();
-  const verification = await twilioClient.verify.v2
-    .services(twilioServiceSid)
-    .verifications.create({ to: phone, channel: 'sms' });
-
-  res.status(200).json({ success: true, message: 'OTP resent successfully', data: { sid: verification.sid } });
+  try {
+    console.log('Attempting to resend OTP to:', phone);
+    const verification = await twilioClient.verify.v2
+      .services(twilioServiceSid)
+      .verifications.create({ to: phone, channel: 'sms' });
+    console.log('OTP resent successfully, SID:', verification.sid);
+    res.status(200).json({ success: true, message: 'OTP resent successfully', data: { sid: verification.sid } });
+  } catch (error) {
+    console.error('Twilio error in resendOtp:', {
+      message: error.message,
+      code: error.code,
+      moreInfo: error.moreInfo,
+      stack: error.stack
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to resend OTP',
+      details: error.message,
+      moreInfo: error.moreInfo || 'https://www.twilio.com/docs/errors/20003'
+    });
+  }
 });
 
 /**
@@ -63,11 +85,27 @@ export const sendOtp = asyncHandler(async (req, res) => {
   }
 
   const { twilioClient, twilioServiceSid } = initializeTwilio();
-  const verification = await twilioClient.verify.v2
-    .services(twilioServiceSid)
-    .verifications.create({ to: phone, channel: 'sms' });
-
-  res.status(200).json({ success: true, message: 'OTP sent successfully', data: { sid: verification.sid } });
+  try {
+    console.log('Attempting to send OTP to:', phone);
+    const verification = await twilioClient.verify.v2
+      .services(twilioServiceSid)
+      .verifications.create({ to: phone, channel: 'sms' });
+    console.log('OTP sent successfully, SID:', verification.sid);
+    res.status(200).json({ success: true, message: 'OTP sent successfully', data: { sid: verification.sid } });
+  } catch (error) {
+    console.error('Twilio error in sendOtp:', {
+      message: error.message,
+      code: error.code,
+      moreInfo: error.moreInfo,
+      stack: error.stack
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to send OTP',
+      details: error.message,
+      moreInfo: error.moreInfo || 'https://www.twilio.com/docs/errors/20003'
+    });
+  }
 });
 
 /**
@@ -89,34 +127,51 @@ export const verifyOtp = asyncHandler(async (req, res) => {
   }
 
   const { twilioClient, twilioServiceSid } = initializeTwilio();
-  const verificationCheck = await twilioClient.verify.v2
-    .services(twilioServiceSid)
-    .verificationChecks.create({ to: phone, code: otp });
+  try {
+    console.log('Attempting to verify OTP for:', phone);
+    const verificationCheck = await twilioClient.verify.v2
+      .services(twilioServiceSid)
+      .verificationChecks.create({ to: phone, code: otp });
 
-  if (verificationCheck.status !== 'approved') {
-    res.status(400);
-    throw new Error('Invalid or expired OTP.');
-  }
+    if (verificationCheck.status !== 'approved') {
+      res.status(400);
+      throw new Error('Invalid or expired OTP.');
+    }
 
-  // Find user or create a new one if they don't exist (upsert)
-  const user = await User.findOneAndUpdate(
-    { phone },
-    { $set: { verified: true } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
+    // Find user or create a new one if they don't exist (upsert)
+    const user = await User.findOneAndUpdate(
+      { phone },
+      { $set: { verified: true } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
 
-  if (user) {
-    res.status(200).json({
-      success: true,
-      message: 'Phone number verified successfully.',
-      data: {
-        token: generateToken(user._id),
-        userId: user._id,
-        isNewUser: user.isNew,
-      },
+    if (user) {
+      console.log('User verified successfully, UserID:', user._id);
+      res.status(200).json({
+        success: true,
+        message: 'Phone number verified successfully.',
+        data: {
+          token: generateToken(user._id),
+          userId: user._id,
+          isNewUser: user.isNew,
+        },
+      });
+    } else {
+      res.status(500);
+      throw new Error('Could not verify user.');
+    }
+  } catch (error) {
+    console.error('Twilio error in verifyOtp:', {
+      message: error.message,
+      code: error.code,
+      moreInfo: error.moreInfo,
+      stack: error.stack
     });
-  } else {
-    res.status(500);
-    throw new Error('Could not verify user.');
+    res.status(500).json({
+      success: false,
+      error: 'Failed to verify OTP',
+      details: error.message,
+      moreInfo: error.moreInfo || 'https://www.twilio.com/docs/errors/20003'
+    });
   }
 });
