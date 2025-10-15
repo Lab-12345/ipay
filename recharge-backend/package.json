@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.10",
-    "@vonage/server-sdk": "^4.0.0"
+    "@vonage/server-sdk": "^4.0.0",
   },
   "repository": {
     "type": "git",
