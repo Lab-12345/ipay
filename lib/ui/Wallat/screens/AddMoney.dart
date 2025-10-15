@@ -2,8 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:ipay/core/constants/app_color.dart';
 import 'package:provider/provider.dart';
-import 'package:ipay/providers/AddMoneyProvider.dart';
-import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart'; // Corrected import
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'dart:js' as js;
 import 'dart:js_util' as jsu;
@@ -12,7 +11,7 @@ import '../../Dialogs/Sucess.dart';
 import 'package:ipay/services/api_service.dart';
 import 'package:ipay/providers/auth_provider.dart';
 import 'package:ipay/providers/WalletProvider.dart';
-
+import 'package:ipay/providers/AddMoneyProvider.dart';
 
 class AddMoneyToWalletScreen extends StatefulWidget {
   const AddMoneyToWalletScreen({super.key});
@@ -24,6 +23,7 @@ class AddMoneyToWalletScreen extends StatefulWidget {
 class _AddMoneyToWalletScreenState extends State<AddMoneyToWalletScreen>
     with TickerProviderStateMixin {
   final TextEditingController amountController = TextEditingController();
+  late Razorpay _razorpay; // Declare Razorpay instance
 
   late AnimationController _animationController;
   late AnimationController _cardAnimationController;
@@ -34,6 +34,9 @@ class _AddMoneyToWalletScreenState extends State<AddMoneyToWalletScreen>
   @override
   void initState() {
     super.initState();
+    _razorpay = Razorpay(); // Initialize Razorpay
+    _setupRazorpayListeners();
+
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -72,16 +75,76 @@ class _AddMoneyToWalletScreenState extends State<AddMoneyToWalletScreen>
     });
   }
 
+  void _setupRazorpayListeners() {
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+  }
+
+  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    final auth = Provider.of<PhoneAuthProvider>(context, listen: false);
+    final amountText = Provider.of<AddMoneyProvider>(context, listen: false).amountController.text;
+    final amount = double.tryParse(amountText) ?? 0.0;
+
+    try {
+      final api = ApiService();
+      await api.verifyRazorpayPayment(
+        token: auth.token!,
+        orderId: response.orderId,
+        paymentId: response.paymentId,
+        signature: response.signature,
+        amount: amount,
+      );
+
+      SuccessPopup.show(
+        context,
+        title: 'Money Added',
+        message: 'Amount has been added to your wallet.',
+        amount: amountText,
+        onDone: () {
+          Navigator.pop(context);
+        },
+      );
+
+      final wallet = Provider.of<IpayWalletProvider>(context, listen: false);
+      await wallet.refreshBalance(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Verification failed: $e')),
+      );
+    } finally {
+      _razorpay.clear();
+    }
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Payment failed: ${response.message ?? response.code}')),
+    );
+    _razorpay.clear();
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    // Handle external wallet if needed
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('External wallet selected: ${response.walletName}')),
+    );
+    _razorpay.clear();
+  }
+
   @override
   void dispose() {
     _animationController.dispose();
     _cardAnimationController.dispose();
+    _razorpay.clear(); // Clear Razorpay instance
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, null); // Remove listeners
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, null);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, null);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Get the provider instance
     final provider = Provider.of<AddMoneyProvider>(context);
 
     return Scaffold(
@@ -260,10 +323,7 @@ class _AddMoneyToWalletScreenState extends State<AddMoneyToWalletScreen>
             const SizedBox(height: 24),
             _buildQuickAmounts(provider),
             const SizedBox(height: 32),
-            // Payment methods hidden for Razorpay flow (single method)
-            // _buildPaymentMethods(provider),
-            // const SizedBox(height: 32),
-            _buildAddMoneyButton(provider), // Pass provider to button
+            _buildAddMoneyButton(provider),
           ],
         ),
       ),
@@ -305,27 +365,26 @@ class _AddMoneyToWalletScreenState extends State<AddMoneyToWalletScreen>
           ),
           suffixIcon: provider.amountController.text.isNotEmpty
               ? Padding(
-                  padding: const EdgeInsets.only(right: 10),
-                  child: Container(
-                    height: 30,
-                    width: 30,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      //borderRadius: BorderRadius.circular(25),
-                      color: Colors.grey.withOpacity(0.3),
-                    ),
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.backspace,
-                        color: Colors.black45,
-                        size: 19,
-                      ),
-                      onPressed: () {
-                        provider.clearAmount();
-                      },
-                    ),
-                  ),
-                )
+            padding: const EdgeInsets.only(right: 10),
+            child: Container(
+              height: 30,
+              width: 30,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.grey.withOpacity(0.3),
+              ),
+              child: IconButton(
+                icon: const Icon(
+                  Icons.backspace,
+                  color: Colors.black45,
+                  size: 19,
+                ),
+                onPressed: () {
+                  provider.clearAmount();
+                },
+              ),
+            ),
+          )
               : null,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.all(20),
@@ -368,13 +427,11 @@ class _AddMoneyToWalletScreenState extends State<AddMoneyToWalletScreen>
                 decoration: BoxDecoration(
                   gradient: isSelected
                       ? const LinearGradient(
-                          colors: [
-                            IpayColor.primaryColor,
-                            IpayColor.primaryColor2,
-                            //Color(0xFF667eea),
-                            //Color(0xFF764ba2)
-                          ],
-                        )
+                    colors: [
+                      IpayColor.primaryColor,
+                      IpayColor.primaryColor2,
+                    ],
+                  )
                       : null,
                   color: isSelected ? null : const Color(0xFFF7FAFC),
                   borderRadius: BorderRadius.circular(12),
@@ -399,110 +456,6 @@ class _AddMoneyToWalletScreenState extends State<AddMoneyToWalletScreen>
     );
   }
 
-  Widget _buildPaymentMethods(AddMoneyProvider provider) {
-    final paymentMethods = [
-      {'icon': Icons.credit_card, 'name': 'Credit Card', 'detail': '**** 1234'},
-      {
-        'icon': Icons.account_balance,
-        'name': 'Bank Transfer',
-        'detail': 'Chase Bank',
-      },
-      {'icon': Icons.payment, 'name': 'PayPal', 'detail': 'user@email.com'},
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Payment Method',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF4A5568),
-          ),
-        ),
-        const SizedBox(height: 12),
-        ...paymentMethods.asMap().entries.map((entry) {
-          int index = entry.key;
-          var method = entry.value;
-          bool isSelected = provider.selectedPaymentMethod == index;
-
-          return GestureDetector(
-            onTap: () {
-              provider.updateSelectedPaymentMethod(index);
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? const Color(0xFFF0F8FF)
-                    : const Color(0xFFF7FAFC),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isSelected
-                      ? const Color(0xFF667eea)
-                      : const Color(0xFFE2E8F0),
-                  width: isSelected ? 2 : 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? const Color(0xFF667eea)
-                          : const Color(0xFFE2E8F0),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      method['icon'] as IconData,
-                      color: isSelected
-                          ? Colors.white
-                          : const Color(0xFF4A5568),
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          method['name'] as String,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: isSelected
-                                ? const Color(0xFF667eea)
-                                : const Color(0xFF2D3748),
-                          ),
-                        ),
-                        Text(
-                          method['detail'] as String,
-                          style: const TextStyle(
-                            color: Color(0xFF718096),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (isSelected)
-                    const Icon(Icons.check_circle, color: Color(0xFF667eea)),
-                ],
-              ),
-            ),
-          );
-        }).toList(),
-      ],
-    );
-  }
-
-
-  ///
-
   Widget _buildAddMoneyButton(AddMoneyProvider provider) {
     return Container(
       width: double.infinity,
@@ -511,8 +464,6 @@ class _AddMoneyToWalletScreenState extends State<AddMoneyToWalletScreen>
           colors: [
             IpayColor.primaryColor2,
             IpayColor.primaryColor.withOpacity(0.9),
-            //Color(0xFF667eea),
-            //Color(0xFF764ba2)
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -527,18 +478,13 @@ class _AddMoneyToWalletScreenState extends State<AddMoneyToWalletScreen>
         ],
       ),
       child: ElevatedButton(
-        // Inside your button onPressed or wherever you trigger the success dialog:
-        // The corrected ElevatedButton's onPressed handler
         onPressed: () async {
-          // Access the AddMoneyProvider
           final addMoneyProvider = Provider.of<AddMoneyProvider>(
             context,
             listen: false,
           );
 
-          // Check if amount is entered
           if (addMoneyProvider.amountController.text.isNotEmpty) {
-            // Get the amount from the provider
             final amountText = addMoneyProvider.amountController.text;
             final amount = double.tryParse(amountText);
             if (amount == null || amount <= 0) {
@@ -559,9 +505,7 @@ class _AddMoneyToWalletScreenState extends State<AddMoneyToWalletScreen>
               final api = ApiService();
 
               if (kIsWeb) {
-                // Web: real Razorpay web checkout via JS interop
                 try {
-                  // 1) Get public key
                   final keyResp = await api.getRazorpayPublicKey(token: auth.token);
                   final dynamic keyContainer = keyResp['data'] ?? keyResp;
                   final String? key = (keyContainer is Map) ? (keyContainer['key'] as String?) : null;
@@ -572,7 +516,6 @@ class _AddMoneyToWalletScreenState extends State<AddMoneyToWalletScreen>
                     return;
                   }
 
-                  // 2) Create order
                   final orderResp = await api.createRazorpayOrder(token: auth.token!, amount: amount);
                   final orderId = orderResp['data']?['orderId'] as String?;
                   final orderAmountPaise = orderResp['data']?['amount'];
@@ -583,29 +526,21 @@ class _AddMoneyToWalletScreenState extends State<AddMoneyToWalletScreen>
                     return;
                   }
 
-                  // Publish key globally as fallback for JS helper
                   try { jsu.setProperty(js.context, '__RZP_PUBLIC_KEY', key); } catch (_) {}
 
-                  // 3) Open checkout via JS
                   final options = {
                     'key': key,
-                    'key_id': key, // ensure SDK sees key (some builds look for key_id)
+                    'key_id': key,
                     'amount': orderAmountPaise ?? (amount * 100).round(),
                     'currency': 'INR',
                     'name': 'iPay',
                     'description': 'Wallet top-up',
                     'order_id': orderId,
-                    'prefill': {
-                      // Optionally fill these if you have them
-                    },
-                    'theme': { 'color': '#3b82f6' },
+                    'prefill': {},
+                    'theme': {'color': '#3b82f6'},
                   };
-                  // Debug log to console for verification in web
-                  // ignore: avoid_print
                   print('Razorpay options (web): key=${key.substring(0, 8)}..., order=$orderId amount=${orderAmountPaise ?? (amount * 100).round()}');
 
-                  // ignore: undefined_prefixed_name
-                  // We will call a JS function defined in web/razorpay_web.js using js.context
                   await _openRazorpayWeb(options, onSuccess: (p) async {
                     try {
                       await api.verifyRazorpayPayment(
@@ -622,10 +557,8 @@ class _AddMoneyToWalletScreenState extends State<AddMoneyToWalletScreen>
                         amount: amountText,
                         onDone: () { Navigator.pop(context); },
                       );
-                      try {
-                        final wallet = Provider.of<IpayWalletProvider>(context, listen: false);
-                        await wallet.refreshBalance(context);
-                      } catch (_) {}
+                      final wallet = Provider.of<IpayWalletProvider>(context, listen: false);
+                      await wallet.refreshBalance(context);
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Verification failed: $e')),
@@ -644,8 +577,6 @@ class _AddMoneyToWalletScreenState extends State<AddMoneyToWalletScreen>
                 return;
               }
 
-              // Mobile (Android/iOS): full Razorpay flow
-              // 1) Fetch public key
               final keyResp = await api.getRazorpayPublicKey(token: auth.token!);
               final key = keyResp['data']?['key'] as String?;
               if (key == null || key.isEmpty) {
@@ -655,7 +586,6 @@ class _AddMoneyToWalletScreenState extends State<AddMoneyToWalletScreen>
                 return;
               }
 
-              // 2) Create order on server
               final orderResp = await api.createRazorpayOrder(token: auth.token!, amount: amount);
               final orderId = orderResp['data']?['orderId'] as String?;
               final orderAmountPaise = orderResp['data']?['amount'];
@@ -666,57 +596,6 @@ class _AddMoneyToWalletScreenState extends State<AddMoneyToWalletScreen>
                 return;
               }
 
-              // 3) Open Razorpay checkout
-              final razorpay = Razorpay();
-              void clear() {
-                try { razorpay.clear(); } catch (_) {}
-              }
-
-              razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, (PaymentSuccessResponse r) async {
-                try {
-                  await api.verifyRazorpayPayment(
-                    token: auth.token!,
-                    orderId: r.orderId ?? orderId,
-                    paymentId: r.paymentId ?? '',
-                    signature: r.signature ?? '',
-                    amount: amount,
-                  );
-
-                  SuccessPopup.show(
-                    context,
-                    title: 'Money Added',
-                    message: 'Amount has been added to your wallet.',
-                    amount: amountText,
-                    onDone: () {
-                      Navigator.pop(context);
-                    },
-                  );
-
-                  try {
-                    // ignore: use_build_context_synchronously
-                    final wallet = Provider.of<IpayWalletProvider>(context, listen: false);
-                    await wallet.refreshBalance(context);
-                  } catch (_) {}
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Verification failed: $e')),
-                  );
-                } finally {
-                  clear();
-                }
-              });
-
-              razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, (PaymentFailureResponse r) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Payment failed: ${r.message ?? r.code}')),
-                );
-                clear();
-              });
-
-              razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, (_) {
-                // Optional: handle external wallet
-              });
-
               final options = {
                 'key': key,
                 'amount': orderAmountPaise ?? (amount * 100).round(),
@@ -724,13 +603,11 @@ class _AddMoneyToWalletScreenState extends State<AddMoneyToWalletScreen>
                 'name': 'iPay',
                 'description': 'Wallet top-up',
                 'order_id': orderId,
-                'prefill': {
-                  // You can pass contact/email if available in your user profile
-                },
-                'theme': { 'color': '#3b82f6' },
+                'prefill': {},
+                'theme': {'color': '#3b82f6'},
               };
 
-              razorpay.open(options);
+              _razorpay.open(options);
             } catch (e) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Unable to start payment: $e')),
@@ -762,28 +639,26 @@ class _AddMoneyToWalletScreenState extends State<AddMoneyToWalletScreen>
     );
   }
 
-  // ... rest of the code
-}
-
-Future<void> _openRazorpayWeb(Map<String, dynamic> options, {required Function(Map) onSuccess, required Function(Map) onError}) async {
-  try {
-    final successWrapper = (dynamic payload) {
-      if (payload is Map) {
-        onSuccess(Map<String, dynamic>.from(payload));
-      } else {
-        onSuccess({});
-      }
-    };
-    final errorWrapper = (dynamic payload) {
-      if (payload is Map) {
-        onError(Map<String, dynamic>.from(payload));
-      } else {
-        onError({'code': 'UNKNOWN'});
-      }
-    };
-    final jsOptions = jsu.jsify(options);
-    js.context.callMethod('openRazorpay', [jsOptions, js.allowInterop(successWrapper), js.allowInterop(errorWrapper)]);
-  } catch (e) {
-    onError({'code': 'EXCEPTION', 'description': e.toString()});
+  Future<void> _openRazorpayWeb(Map<String, dynamic> options, {required Function(Map) onSuccess, required Function(Map) onError}) async {
+    try {
+      final successWrapper = (dynamic payload) {
+        if (payload is Map) {
+          onSuccess(Map<String, dynamic>.from(payload));
+        } else {
+          onSuccess({});
+        }
+      };
+      final errorWrapper = (dynamic payload) {
+        if (payload is Map) {
+          onError(Map<String, dynamic>.from(payload));
+        } else {
+          onError({'code': 'UNKNOWN'});
+        }
+      };
+      final jsOptions = jsu.jsify(options);
+      js.context.callMethod('openRazorpay', [jsOptions, js.allowInterop(successWrapper), js.allowInterop(errorWrapper)]);
+    } catch (e) {
+      onError({'code': 'EXCEPTION', 'description': e.toString()});
+    }
   }
 }

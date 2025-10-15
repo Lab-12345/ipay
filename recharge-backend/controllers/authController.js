@@ -16,7 +16,7 @@ const initializeVonage = () => {
         apiKey: process.env.VONAGE_API_KEY,
         apiSecret: process.env.VONAGE_API_SECRET,
       });
-      console.log('Vonage client initialized successfully with API Key:', process.env.VONAGE_API_KEY.substring(0, 4) + '...');
+      console.log('Vonage client initialized successfully with API Key:', process.env.VONAGE_AzzzzPI_KEY.substring(0, 4) + '...');
     } catch (error) {
       console.error('Vonage initialization failed:', error.message);
       throw new Error(`Vonage initialization error: ${error.message}`);

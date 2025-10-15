@@ -1,179 +1,120 @@
 import 'package:flutter/material.dart';
+import 'package:ipay/core/constants/app_color.dart';
 import 'package:ipay/core/constants/app_constants.dart';
+import 'package:ipay/ui/Recharge/DTHRecharge/DTHRecharges.dart';
+import 'package:ipay/ui/Recharge/MobileRecharge/MobileRecharge.dart';
 
-import '../../../core/constants/app_Helper_Function.dart';
-
-class RechargeBottomSheet {
-  static void show(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => const IpayRechargeBottomSheet(),
-    );
-  }
-}
-
-class IpayRechargeBottomSheet extends StatelessWidget {
-  const IpayRechargeBottomSheet({Key? key}) : super(key: key);
+/// This is the corrected RechargeBottomSheet class that is now a proper Flutter Widget.
+class RechargeBottomSheet extends StatelessWidget {
+  const RechargeBottomSheet({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 400,
+      padding: const EdgeInsets.all(IpaySize.md),
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(IpaySize.borderRadiusXL),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(IpaySize.borderRadiusLg),
+          topRight: Radius.circular(IpaySize.borderRadiusLg),
         ),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHandle(),
-          _buildHeader(context),
-          Expanded(child: _buildRechargeGrid(context)),
+          // Handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(IpaySize.borderRadiusSm),
+              ),
+            ),
+          ),
+          const SizedBox(height: IpaySize.spaceBtwSections),
+
+          // Title
+          Text(
+            'Recharge & Bill Payments',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: IpaySize.spaceBtwItems),
+
+          // Grid of Services
+          GridView.count(
+            crossAxisCount: 4,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: IpaySize.md,
+            crossAxisSpacing: IpaySize.md,
+            children: [
+              _buildServiceIcon(
+                context,
+                icon: Icons.smartphone,
+                label: 'Mobile',
+                onTap: () {
+                  Navigator.pop(context); // Close the bottom sheet first
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const Mobilerecharge()),
+                  );
+                },
+              ),
+              _buildServiceIcon(
+                context,
+                icon: Icons.satellite_alt,
+                label: 'DTH',
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const DthRecharges()),
+                  );
+                },
+              ),
+              _buildServiceIcon(context, icon: Icons.light, label: 'Electricity'),
+              _buildServiceIcon(context, icon: Icons.speed, label: 'Fastag'),
+              _buildServiceIcon(context, icon: Icons.wifi, label: 'Broadband'),
+              _buildServiceIcon(context, icon: Icons.local_gas_station, label: 'Gas Bill'),
+              _buildServiceIcon(context, icon: Icons.water_drop, label: 'Water'),
+              _buildServiceIcon(context, icon: Icons.phone, label: 'Landline'),
+            ],
+          ),
+          const SizedBox(height: IpaySize.spaceBtwSections),
         ],
       ),
     );
   }
 
-  Widget _buildHandle() {
-    return Container(
-      margin: const EdgeInsets.only(top: IpaySize.sm, bottom: IpaySize.md),
-      width: 40,
-      height: IpaySize.xs,
-      decoration: BoxDecoration(
-        color: const Color(0xFFE0E0E0),
-        borderRadius: BorderRadius.circular(IpaySize.borderRadiusSm - 2),
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: IpaySize.md,
-        vertical: IpaySize.sm,
-      ),
-      child: Row(
+  /// Helper widget to build each icon in the grid.
+  Widget _buildServiceIcon(BuildContext context, {required IconData icon, required String label, VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap ?? () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$label coming soon'))),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 50,
+            height: 50,
             decoration: BoxDecoration(
-              color: const Color(0xFF2196F3),
-              borderRadius: BorderRadius.circular(IpaySize.borderRadiusMd),
+              color: IpayColor.primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(IpaySize.borderRadiusLg),
             ),
-            child: const Icon(Icons.payment, color: Colors.white, size: 20),
+            child: Icon(icon, color: IpayColor.primaryColor, size: 28),
           ),
-          const SizedBox(width: IpaySize.spaceBtwItemsMd),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                IpayHelper.CustomText(
-                  text: 'Recharge & Bill Payment',
-                  fontSize: 18,
-                  color: Colors.black87,
-                  fontWeight: FontWeight.w600,
-                ),
-                IpayHelper.CustomText(
-                  text: 'Choose a service',
-                  fontSize: 14,
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.normal,
-                ),
-              ],
-            ),
+          const SizedBox(height: IpaySize.spaceBtwItemsSm),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
     );
   }
-
-  Widget _buildRechargeGrid(BuildContext context) {
-    final List<RechargeService> services = [
-      RechargeService('Mobile Recharge', Icons.phone_android),
-      RechargeService('Metro Card', Icons.train),
-      RechargeService('DTH Recharge', Icons.tv),
-      RechargeService('Data Card', Icons.sim_card),
-      RechargeService('Fastag', Icons.speed),
-      RechargeService('More Services', Icons.more_horiz),
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: IpaySize.md + 4),
-      child: GridView.builder(
-        padding: const EdgeInsets.only(bottom: IpaySize.md + 4),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 15,
-          mainAxisSpacing: 15,
-          childAspectRatio: 0.9,
-        ),
-        itemCount: services.length,
-        itemBuilder: (context, index) {
-          return _buildServiceCard(context, services[index]);
-        },
-      ),
-    );
-  }
-
-  Widget _buildServiceCard(BuildContext context, RechargeService service) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${service.name} selected'),
-            duration: const Duration(seconds: 2),
-            backgroundColor: const Color(0xFF2196F3),
-          ),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(IpaySize.borderRadiusMd + 3),
-          border: Border.all(color: const Color(0xFFE0E0E0), width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x0A000000),
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            )
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: const Color(0xFF2196F3),
-                borderRadius: BorderRadius.circular(IpaySize.borderRadiusXL),
-              ),
-              child: Icon(service.icon, color: Colors.white, size: IpaySize.iconMd),
-            ),
-            const SizedBox(height: IpaySize.defaultSpace / 2),
-            IpayHelper.CustomText(
-              text: service.name,
-              fontSize: 13,
-              color: Colors.black87,
-              fontWeight: FontWeight.w600,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class RechargeService {
-  final String name;
-  final IconData icon;
-
-  RechargeService(this.name, this.icon);
 }

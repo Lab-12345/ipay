@@ -10,7 +10,6 @@ import '../../../providers/IpayHomeProvider.dart';
 import '../../Recharge/DTHRecharge/DTHRecharges.dart';
 import '../../Recharge/LPG/LPGInputs.dart';
 import '../../Recharge/LPG/LPGRecharge.dart';
-import '../dailogs/BottomSheet(New).dart';
 import '../dailogs/RechageMenu.dart';
 import '../dailogs/RechargeBottomSheet.dart';
 import '../widgets/Wallet.dart';
@@ -31,10 +30,21 @@ class IPayHomeScreen extends StatelessWidget {
     );
   }
 
+  void showBillPaymentBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => RechargeBottomSheet(), // Use the RechargeBottomSheet widget
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final size = MediaQuery.of(context).size;
+    final size = MediaQuery
+        .of(context)
+        .size;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -90,7 +100,6 @@ class IPayHomeScreen extends StatelessWidget {
               // Promotional Banner
               SizedBox(
                 height: 180,
-                // Use a Consumer to listen to the HomeProvider
                 child: Consumer<HomeProvider>(
                   builder: (context, homeProvider, child) {
                     return PageView(
@@ -301,12 +310,13 @@ class IPayHomeScreen extends StatelessWidget {
                               context,
                               icon: Icons.propane_tank,
                               label: 'LPG Cylinder',
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => LpgScreen(),
-                                ),
-                              ),
+                              onTap: () =>
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => LpgScreen(),
+                                    ),
+                                  ),
                               //_onServiceTap(context, 'LPG Cylinder'),
                             ),
                             _buildServiceItem(
@@ -559,8 +569,7 @@ class IPayHomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildServiceItem(
-    BuildContext context, {
+  Widget _buildServiceItem(BuildContext context, {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
@@ -599,5 +608,7 @@ class IPayHomeScreen extends StatelessWidget {
     );
   }
 
-  /// ---------- DUMMY SCREENS FOR DEMO ----------
+}
+
+class BillPaymentBottomSheet {
 }

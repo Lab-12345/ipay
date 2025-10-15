@@ -1,14 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart'; // Import Provider
+import 'package:provider/provider.dart';
 import 'package:ipay/core/constants/app_color.dart';
 import 'package:ipay/core/constants/app_constants.dart';
-import 'package:ipay/ui/Auth/screens/OTPverifacation.dart';
-import 'package:ipay/providers/otp_provider.dart'; // Import the OTP provider
-
-import '../../../core/constants/app_Helper_Function.dart';
-import '../../../providers/auth_provider.dart';
-import '../../../providers/enhanced_auth_provider.dart';
+import 'package:ipay/ui/Auth/screens/OTPVerification.dart'; // Corrected import
+import 'package:ipay/providers/otp_provider.dart';
+import 'package:ipay/core/constants/app_Helper_Function.dart';
+import 'package:ipay/providers/auth_provider.dart';
+import 'package:ipay/providers/enhanced_auth_provider.dart';
 
 class IPayPhoneAuthScreen extends StatelessWidget {
   const IPayPhoneAuthScreen({super.key});
@@ -52,9 +51,7 @@ class IPayPhoneAuthScreen extends StatelessWidget {
               Container(
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(
-                    IpaySize.borderRadiusLg + 5,
-                  ),
+                  borderRadius: BorderRadius.circular(IpaySize.borderRadiusLg + 5),
                 ),
                 child: Row(
                   children: [
@@ -64,9 +61,7 @@ class IPayPhoneAuthScreen extends StatelessWidget {
                         vertical: IpaySize.borderRadiusLg,
                       ),
                       decoration: const BoxDecoration(
-                        border: Border(
-                          right: BorderSide(color: Colors.transparent),
-                        ),
+                        border: Border(right: BorderSide(color: Colors.transparent)),
                       ),
                       child: IpayHelper.CustomText(
                         text: '+91',
@@ -104,35 +99,29 @@ class IPayPhoneAuthScreen extends StatelessWidget {
                   onPressed: () async {
                     final phoneNumber = phoneAuth.phoneController.text.trim();
                     if (phoneAuth.isPhoneNumberValid) {
-                      // Show loading
                       phoneAuth.setLoading(true);
-                      
+
                       try {
-                        // Get enhanced auth provider and send OTP
                         final enhancedAuth = Provider.of<EnhancedAuthProvider>(context, listen: false);
                         enhancedAuth.setPhoneNumber(phoneNumber);
                         await enhancedAuth.sendOtp();
-                        
+
                         phoneAuth.setLoading(false);
-                        
+
                         if (enhancedAuth.errorMessage == null) {
-                          // OTP sent successfully, navigate to OTP screen
                           final fullPhoneNumber = "+91$phoneNumber";
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) {
-                                return ChangeNotifierProvider(
-                                  create: (context) => OtpProvider(),
-                                  child: OTPVerificationScreen(
-                                    phoneNumber: fullPhoneNumber,
-                                  ),
-                                );
-                              },
+                              builder: (context) => ChangeNotifierProvider(
+                                create: (context) => OtpProvider(),
+                                child: OTPVerificationScreen(
+                                  phoneNumber: fullPhoneNumber,
+                                ),
+                              ),
                             ),
                           );
                         } else {
-                          // Show error
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(enhancedAuth.errorMessage!),
@@ -162,9 +151,7 @@ class IPayPhoneAuthScreen extends StatelessWidget {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: IpaySize.md),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        IpaySize.borderRadiusLg + 5,
-                      ),
+                      borderRadius: BorderRadius.circular(IpaySize.borderRadiusLg + 5),
                     ),
                   ),
                   child: IpayHelper.CustomText(
@@ -244,9 +231,7 @@ class IPayPhoneAuthScreen extends StatelessWidget {
                         print('Facebook sign in clicked');
                       }
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Facebook sign in clicked'),
-                        ),
+                        const SnackBar(content: Text('Facebook sign in clicked')),
                       );
                     },
                     child: Container(
