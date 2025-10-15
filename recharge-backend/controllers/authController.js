@@ -48,7 +48,7 @@ export const resendOtp = asyncHandler(async (req, res) => {
   }
 
   const vonageClient = initializeVonage();
-  const from = 'Vonage APIs'; // Vonage virtual number or brand name
+  const from = 'Vonage APIs'; // Replace with a Vonage virtual number if available
   const text = `Your OTP is ${Math.floor(100000 + Math.random() * 900000)}`; // Generate a 6-digit OTP
   try {
     console.log('Attempting to resend OTP to:', phone);
@@ -125,8 +125,6 @@ export const verifyOtp = asyncHandler(async (req, res) => {
     throw new Error('A 6-digit OTP is required.');
   }
 
-  // Note: Vonage doesn't provide a built-in OTP verification service like Twilio Verify.
-  // You'll need to store the OTP in your database and verify it manually.
   const user = await User.findOne({ phone });
 
   if (user && user.otp === otp && user.otpExpires > Date.now()) {
