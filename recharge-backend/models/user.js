@@ -6,6 +6,12 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
+  otp: {
+    type: Number, // Store the 6-digit OTP
+  },
+  otpExpires: {
+    type: Date, // Store the expiration time of the OTP
+  },
   verified: {
     type: Boolean,
     default: false,
