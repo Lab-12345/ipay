@@ -5,24 +5,27 @@ class CyrusService {
   constructor() {
     this.baseUrl = API_CONFIG.CYRUS.BASE_URL;
     this.memberId = API_CONFIG.CYRUS.MEMBER_ID;
-    this.pin = API_CONFIG.CYRUS.PIN;
+    this.pin = API_CONFIG.CYRUS.PIN; // Default PIN
+    this.operatorPassword = API_CONFIG.CYRUS.OPERATOR_PASSWORD;
+    this.dthPassword = API_CONFIG.CYRUS.DTH_PASSWORD;
+    this.offerPassword = API_CONFIG.CYRUS.OFFER_PASSWORD;
+    this.billPassword = API_CONFIG.CYRUS.BILL_PASSWORD;
     this.callbackUrl = API_CONFIG.CYRUS.CALLBACK_URL;
   }
 
-  // 🔹 Generic GET request handler (for endpoints like GetOperator.aspx with Method param)
-  async makeGetRequest(endpoint, method = null, extraParams = {}) {
+  // 🔹 Generic GET request handler with password selection
+  async makeGetRequest(endpoint, params = {}, password = this.pin) {
     try {
       const url = `${this.baseUrl}${endpoint}`;
-      const params = {
-        memberid: this.memberId,
-        pin: this.pin,
-        ...(method && { Method: method }),
-        ...extraParams,
+      const fullParams = {
+        APIID: this.memberId,
+        PASSWORD: password,
+        ...params,
       };
 
-      console.log(`➡️ GET Requesting: ${url}`, params);
+      console.log(`➡️ GET Requesting: ${url}`, fullParams);
 
-      const response = await axios.get(url, { params });
+      const response = await axios.get(url, { params: fullParams });
       return response.data;
     } catch (error) {
       console.error(`❌ Cyrus API GET error (${endpoint}):`, error.message);
@@ -30,13 +33,13 @@ class CyrusService {
     }
   }
 
-  // 🔹 Generic POST request handler (for BBPS endpoints)
-  async makePostRequest(endpoint, methodname, extraData = {}) {
+  // 🔹 Generic POST request handler
+  async makePostRequest(endpoint, methodname, extraData = {}, password = this.pin) {
     try {
       const url = `${this.baseUrl}${endpoint}`;
       const data = {
-        memberid: this.memberId,
-        pin: this.pin,
+        APIID: this.memberId,
+        PASSWORD: password,
         methodname,
         ...extraData,
       };
@@ -53,7 +56,7 @@ class CyrusService {
     }
   }
 
-  // 🔹 Recharge API (handles recharge and bill payment)
+  // 🔹 Recharge API
   async recharge({
     number,
     amount,
@@ -63,12 +66,13 @@ class CyrusService {
     account = null,
     othervalue = null,
     othervalue1 = null,
+    serviceType = 'mobile',
   }) {
     const endpoint = CYRUS_ENDPOINTS.RECHARGE;
-    const url = `${this.baseUrl}${endpoint}`;
+    const password = serviceType === 'dth' ? this.dthPassword : this.pin;
     const params = {
-      memberid: this.memberId,
-      pin: this.pin,
+      APIID: this.memberId,
+      PASSWORD: password,
       number,
       operator,
       circle,
@@ -79,12 +83,13 @@ class CyrusService {
       ...(account && { account }),
       ...(othervalue && { othervalue }),
       ...(othervalue1 && { othervalue1 }),
+      ...(serviceType && { serviceType }),
     };
 
     console.log(`➡️ Requesting Recharge: ${url}`, params);
 
     try {
-      const response = await axios.get(url, { params });
+      const response = await axios.get(`${this.baseUrl}${endpoint}`, { params });
       return response.data;
     } catch (error) {
       console.error(`❌ Cyrus Recharge API error:`, error.message);
@@ -92,165 +97,73 @@ class CyrusService {
     }
   }
 
-  // 🔹 Get balance (e-wallet)
+  // 🔹 Get balance
   async getBalance() {
-    return await this.makeGetRequest(CYRUS_ENDPOINTS.BALANCE, 'getbalance');
+    return await this.makeGetRequest(CYRUS_ENDPOINTS.BALANCE, { Method: 'getbalance' });
   }
 
   // 🔹 Get AEPS balance
   async getAEPSBalance() {
-    return await this.makeGetRequest(CYRUS_ENDPOINTS.AEPS_BALANCE, 'getaepsbalance');
+    return await this.makeGetRequest(CYRUS_ENDPOINTS.AEPS_BALANCE, { Method: 'getaepsbalance' });
   }
 
-  // 🔹 Get operators
-  async getOperators() {
-    return await this.makeGetRequest(CYRUS_ENDPOINTS.OPERATOR_CIRCLE, 'getoperator');
+  // 🔹 Get operator by mobile number (MNP detection)
+  async getOperators(number) {
+    return await this.makeGetRequest(CYRUS_ENDPOINTS.MNP, { MOBILENUMBER: number }, this.operatorPassword);
   }
 
-  // 🔹 Get circles
-  async getCircles() {
-    return await this.makeGetRequest(CYRUS_ENDPOINTS.OPERATOR_CIRCLE, 'getcircle');
+  // 🔹 Get circle by mobile number
+  async getCircles(number) {
+    const response = await this.getOperators(number); // Reuse MNP fetch
+    if (response.success) {
+      return { id: response.data.circleId, name: response.data.circleName };
+    }
+    throw new Error(response.error || 'Failed to fetch circle');
   }
 
   // 🔹 Get recharge status
   async getRechargeStatus(referenceId) {
-    const endpoint = CYRUS_ENDPOINTS.STATUS;
-    const url = `${this.baseUrl}${endpoint}`;
-    const params = {
-      memberid: this.memberId,
-      pin: this.pin,
-      transid: referenceId,
-    };
-
-    console.log(`➡️ Requesting Status: ${url}`, params);
-
-    try {
-      const response = await axios.get(url, { params });
-      return response.data;
-    } catch (error) {
-      console.error(`❌ Cyrus Status API error:`, error.message);
-      throw error;
-    }
+    return await this.makeGetRequest(CYRUS_ENDPOINTS.STATUS, { transid: referenceId });
   }
 
   // 🔹 Get plans
   async getPlans(operator, circle, mobile) {
-    const endpoint = CYRUS_ENDPOINTS.PLANS;
-    const url = `${this.baseUrl}${endpoint}`;
-    const params = {
-      APIID: this.memberId,
-      PASSWORD: this.pin,
+    return await this.makeGetRequest(CYRUS_ENDPOINTS.PLANS, {
       Operator_Code: operator,
       Circle_Code: circle,
       MobileNumber: mobile,
       data: 'ALL',
-    };
-
-    console.log(`➡️ Requesting Plans: ${url}`, params);
-
-    try {
-      const response = await axios.get(url, { params });
-      return response.data;
-    } catch (error) {
-      console.error(`❌ Cyrus Plans API error:`, error.message);
-      throw error;
-    }
+    }, this.dthPassword); // Use DTH password for plans
   }
 
-  // 🔹 Get operator by mobile number (MNP detection)
-  async getOperatorByNumber(number) {
-    const endpoint = CYRUS_ENDPOINTS.MNP;
-    const url = `${this.baseUrl}${endpoint}`;
-    const params = {
-      APIID: this.memberId,
-      PASSWORD: this.pin,
-      MOBILENUMBER: number,
-    };
-
-    console.log(`➡️ Requesting MNP Operator: ${url}`, params);
-
-    try {
-      const response = await axios.get(url, { params });
-      return response.data;
-    } catch (error) {
-      console.error(`❌ Cyrus MNP API error:`, error.message);
-      throw error;
-    }
-  }
-
-  // 🔹 Get recharge offers (Roffers)
+  // 🔹 Get recharge offers
   async getRechargeOffers(operator, mobile, offerType = 'roffer') {
-    const endpoint = CYRUS_ENDPOINTS.ROFFERS;
-    const url = `${this.baseUrl}${endpoint}`;
-    const params = {
-      MerchantID: this.memberId,
-      MerchantKey: this.pin,
+    return await this.makeGetRequest(CYRUS_ENDPOINTS.ROFFERS, {
       MethodName: 'roffer',
       operator,
       mobile,
       offer: offerType,
-    };
-
-    console.log(`➡️ Requesting Roffers: ${url}`, params);
-
-    try {
-      const response = await axios.get(url, { params });
-      return response.data;
-    } catch (error) {
-      console.error(`❌ Cyrus Roffers API error:`, error.message);
-      throw error;
-    }
+    }, this.offerPassword);
   }
 
   // 🔹 Get DTH info
   async getDTHInfo(mobile, offerType = 'roffer') {
-    const endpoint = CYRUS_ENDPOINTS.DTH_INFO;
-    const url = `${this.baseUrl}${endpoint}`;
-    const params = {
-      MerchantID: this.memberId,
-      MerchantKey: this.pin,
+    return await this.makeGetRequest(CYRUS_ENDPOINTS.DTH_INFO, {
       MethodName: 'dthinfo',
       operator: 'DTD',
       mobile,
       offer: offerType,
-    };
-
-    console.log(`➡️ Requesting DTH Info: ${url}`, params);
-
-    try {
-      const response = await axios.get(url, { params });
-      return response.data;
-    } catch (error) {
-      console.error(`❌ Cyrus DTH Info API error:`, error.message);
-      throw error;
-    }
+    }, this.offerPassword);
   }
 
   // 🔹 Raise dispute
   async raiseDispute(refid, remarks) {
-    const endpoint = CYRUS_ENDPOINTS.DISPUTE;
-    const url = `${this.baseUrl}${endpoint}`;
-    const params = {
-      memberid: this.memberId,
-      pin: this.pin,
-      transid: refid,
-      reason: remarks,
-    };
-
-    console.log(`➡️ Requesting Dispute: ${url}`, params);
-
-    try {
-      const response = await axios.get(url, { params });
-      return response.data;
-    } catch (error) {
-      console.error(`❌ Cyrus Dispute API error:`, error.message);
-      throw error;
-    }
+    return await this.makeGetRequest(CYRUS_ENDPOINTS.DISPUTE, { transid: refid, reason: remarks });
   }
 
   // 🔹 BBPS: Get biller info
   async getBillerInfo(operator) {
-    return await this.makePostRequest(CYRUS_ENDPOINTS.BILL_FETCH, 'get_billerinfo', { operator });
+    return await this.makePostRequest(CYRUS_ENDPOINTS.BILL_FETCH, 'get_billerinfo', { operator }, this.billPassword);
   }
 
   // 🔹 BBPS: Get bill fetch
@@ -259,7 +172,7 @@ class CyrusService {
       operator,
       RequestData: requestData,
       format: 'json',
-    });
+    }, this.billPassword);
   }
 }
 
