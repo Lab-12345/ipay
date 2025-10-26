@@ -11,18 +11,31 @@ export const walletBalance = asyncHandler(async (req, res) => {
     throw new Error('User ID is required');
   }
   const balance = await walletController.getBalance(req, res, userId); // Pass userId
-  res.status(200).json({ success: true, data: balance });
+  res.status(200).json({ success: true, data: { balance: balance.toFixed(2) } });
 });
 
 // Get Cyrus wallet balance (for reseller, not user-specific)
 export const getBalance = asyncHandler(async (req, res) => {
-  const balance = await cyrusService.getBalance(); // Cyrus reseller balance
-  res.status(200).json({ success: true, data: balance });
+  try {
+    const balance = await cyrusService.getBalance();
+    res.status(200).json({ success: true, data: { balance: balance.toFixed(2) || 0 } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to fetch Cyrus balance', details: error.message });
+  }
 });
 
+/**
+ * @desc    Get list of mobile operators from Cyrus
+ * @route   GET /api/recharge/operators
+ * @access  Private
+ */
 export const getOperators = asyncHandler(async (req, res) => {
-  const operators = await cyrusService.getOperators();
-  res.status(200).json({ success: true, data: operators });
+  try {
+    const operators = await cyrusService.getOperators();
+    res.status(200).json({ success: true, data: operators });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to fetch operators', details: error.message });
+  }
 });
 
 /**
@@ -31,8 +44,12 @@ export const getOperators = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const getCircles = asyncHandler(async (req, res) => {
-  const circles = await cyrusService.getCircles();
-  res.status(200).json({ success: true, data: circles });
+  try {
+    const circles = await cyrusService.getCircles();
+    res.status(200).json({ success: true, data: circles });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to fetch circles', details: error.message });
+  }
 });
 
 /**
@@ -48,17 +65,25 @@ export const getPlans = asyncHandler(async (req, res) => {
     throw new Error('Operator ID and Circle ID are required query parameters.');
   }
 
-  const plans = await cyrusService.getPlans(operatorId, circleId);
-  res.status(200).json({ success: true, data: plans });
+  try {
+    const plans = await cyrusService.getPlans(operatorId, circleId);
+    if (!plans || plans.length === 0) {
+      res.status(404).json({ success: false, error: 'No plans found for the given operator and circle' });
+    } else {
+      res.status(200).json({ success: true, data: plans });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to fetch plans', details: error.message });
+  }
 });
 
 /**
- * @desc    Perform a mobile recharge
+ * @desc    Perform a mobile or DTH recharge
  * @route   POST /api/recharge/perform
  * @access  Private
  */
 export const performRecharge = asyncHandler(async (req, res) => {
-  const { mobileNumber, operatorId, circleId, amount, callbackUrl, userId, planId } = req.body; // Add planId for plan-based amount
+  const { mobileNumber, operatorId, circleId, amount, callbackUrl, userId, planId, serviceType = 'mobile' } = req.body; // Added serviceType for DTH
 
   // Input validation
   if (!mobileNumber || !operatorId || !circleId || !userId) {
@@ -66,11 +91,17 @@ export const performRecharge = asyncHandler(async (req, res) => {
     throw new Error('Mobile number, operator ID, circle ID, and userId are required.');
   }
 
+  // Validate service type
+  if (!['mobile', 'dth'].includes(serviceType.toLowerCase())) {
+    res.status(400);
+    throw new Error('Invalid service type. Use "mobile" or "dth".');
+  }
+
   // Fetch plan amount if planId is provided, otherwise use amount
   let rechargeAmount;
   if (planId) {
     const plans = await cyrusService.getPlans(operatorId, circleId);
-    const selectedPlan = plans.find(plan => plan.id === planId); // Adjust 'id' based on Cyrus plan structure
+    const selectedPlan = plans.find(plan => plan.id === planId); // Adjust 'id' based on Cyrus response
     if (!selectedPlan) {
       res.status(400);
       throw new Error('Invalid plan ID.');
@@ -89,10 +120,10 @@ export const performRecharge = asyncHandler(async (req, res) => {
   }
 
   // User wallet validation
-  const userBalance = await walletController.getBalance(req, res, userId); // Fetch current balance
+  const userBalance = await walletController.getBalance(req, res, userId);
   if (userBalance < rechargeAmount) {
     res.status(400);
-    throw new Error(`Insufficient balance. Available: ₹${userBalance.toFixed(2)}`);
+    throw new Error(`Insufficient balance. Available: ₹${userBalance.toFixed(2)}, Required: ₹${rechargeAmount.toFixed(2)}`);
   }
 
   // Proceed with recharge
@@ -104,17 +135,18 @@ export const performRecharge = asyncHandler(async (req, res) => {
       mobileNumber,
       operatorId,
       circleId,
-      rechargeAmount, // Use plan amount or provided amount
+      rechargeAmount,
       clientId,
-      finalCallbackUrl
+      finalCallbackUrl,
+      serviceType
     );
 
     if (!rechargeResult.success) {
       throw new Error(rechargeResult.message || 'Recharge failed');
     }
 
-    // Deduct from user wallet after success (use transaction if available)
-    await walletController.deductBalance(req, res, userId, rechargeAmount); // Use rechargeAmount
+    // Deduct from user wallet after success
+    await walletController.deductBalance(req, res, userId, rechargeAmount);
 
     res.status(201).json({
       success: true,
@@ -122,12 +154,13 @@ export const performRecharge = asyncHandler(async (req, res) => {
         ...rechargeResult,
         clientId,
         callbackUrl: finalCallbackUrl,
-        newBalance: userBalance - rechargeAmount, // Update after deduction
+        newBalance: (userBalance - rechargeAmount).toFixed(2),
+        serviceType,
       },
     });
   } catch (error) {
-    console.error('Recharge Error:', error.message); // Log for Railway
-    res.status(500).json({ success: false, message: 'Internal server error—check logs' });
+    console.error('Recharge Error:', { message: error.message, stack: error.stack }); // Enhanced logging
+    res.status(500).json({ success: false, message: 'Internal server error—check logs', details: error.message });
   }
 });
 
@@ -144,8 +177,16 @@ export const getRechargeStatus = asyncHandler(async (req, res) => {
     throw new Error('Client ID is required as a URL parameter.');
   }
 
-  const status = await cyrusService.getRechargeStatus(clientId);
-  res.status(200).json({ success: true, data: status });
+  try {
+    const status = await cyrusService.getRechargeStatus(clientId);
+    if (!status) {
+      res.status(404).json({ success: false, error: 'Recharge status not found' });
+    } else {
+      res.status(200).json({ success: true, data: status });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to fetch recharge status', details: error.message });
+  }
 });
 
 // Export as UserBalance (capitalized)
@@ -157,6 +198,10 @@ export const UserBalance = asyncHandler(async (req, res) => {
     throw new Error('User ID is required as a URL parameter.');
   }
 
-  const balance = await walletController.getBalance(req, res, userId); // Use walletController
-  res.status(200).json({ success: true, data: balance });
+  try {
+    const balance = await walletController.getBalance(req, res, userId);
+    res.status(200).json({ success: true, data: { balance: balance.toFixed(2) } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to fetch user balance', details: error.message });
+  }
 });
