@@ -1,214 +1,56 @@
-// lib/services/api_service.dart
-import 'dart:convert';
-import 'dart:io';
-import 'dart:async';
-import 'package:http/http.dart' as http;
-import 'app_config.dart';
+// routes/recharge.js
+import express from 'express';
+import cyrusService from '../services/cyrusService.js';
+import asyncHandler from 'express-async-handler';
 
-class ApiService {
-  static final ApiService _instance = ApiService._internal();
-  factory ApiService() => _instance;
-  ApiService._internal();
+const router = express.Router();
 
-  final http.Client _client = http.Client();
+/**
+ * @desc    Detect operator & circle by mobile number (MNP)
+ * @route   GET /api/recharge/detect
+ * @access  Private
+ */
+router.get(
+  '/detect',
+  asyncHandler(async (req, res) => {
+    const { mobile } = req.query;
 
-  // --------------------------------------------------------------------- //
-  // Generic GET / POST
-  // --------------------------------------------------------------------- //
-  Future<Map<String, dynamic>> get(String endpoint, {String? token}) async {
+    if (!mobile || mobile.length !== 10) {
+      res.status(400);
+      throw new Error('Valid 10-digit mobile number is required');
+    }
+
     try {
-      final headers = _getHeaders(token);
-      final response = await _client
-          .get(Uri.parse('${AppConfig.baseUrl}$endpoint'), headers: headers)
-          .timeout(AppConfig.connectionTimeout);
-      return _handleResponse(response);
-    } catch (e) {
-      throw _handleError(e);
-    }
-  }
+      const cyrusResponse = await cyrusService.getOperatorByNumber(mobile);
 
-  Future<Map<String, dynamic>> post(
-      String endpoint,
-      Map<String, dynamic> data, {
-        String? token,
-      }) async {
-    try {
-      final headers = _getHeaders(token);
-      final response = await _client
-          .post(
-        Uri.parse('${AppConfig.baseUrl}$endpoint'),
-        headers: headers,
-        body: jsonEncode(data),
-      )
-          .timeout(AppConfig.connectionTimeout);
-      return _handleResponse(response);
-    } catch (e) {
-      throw _handleError(e);
-    }
-  }
+      // Cyrus returns plain text or JSON – adjust parsing
+      let operator = '';
+      let circle = '';
 
-  // --------------------------------------------------------------------- //
-  // MOBILE RECHARGE: AUTO DETECT OPERATOR & CIRCLE
-  // --------------------------------------------------------------------- //
-  /// Uses Cyrus MNP API: /API/CyrusOperatorFatchAPI.aspx
-  Future<Map<String, dynamic>> fetchOperatorAndCircle({
-    required String mobileNumber,
-    String? token,
-  }) async {
-    return await get('/api/recharge/detect?mobile=$mobileNumber', token: token);
-  }
-
-  // --------------------------------------------------------------------- //
-  // FETCH RECHARGE PLANS
-  // --------------------------------------------------------------------- //
-  /// Uses Cyrus Plans API: /API/CyrusPlanFatchAPI.aspx
-  Future<Map<String, dynamic>> fetchRechargePlans({
-    required String operatorCode,
-    required String circleCode,
-    required String mobile,
-    String? token,
-  }) async {
-    final query = [
-      'operator=$operatorCode',
-      'circle=$circleCode',
-      'mobile=$mobile',
-    ].join('&');
-    return await get('/api/recharge/plans?$query', token: token);
-  }
-
-  // --------------------------------------------------------------------- //
-  // PERFORM RECHARGE
-  // --------------------------------------------------------------------- //
-  Future<Map<String, dynamic>> performRecharge({
-    required String mobileNumber,
-    required String operatorId,
-    required String circleId,
-    required double amount,
-    String? planId,
-    required String userId,
-    String? token,
-  }) async {
-    return await post(
-      '/api/recharge/perform',
-      {
-        'mobileNumber': mobileNumber,
-        'operatorId': operatorId,
-        'circleId': circleId,
-        'amount': amount,
-        'userId': userId,
-        if (planId != null) 'planId': planId,
-      },
-      token: token,
-    );
-  }
-
-  // --------------------------------------------------------------------- //
-  // GET RECHARGE STATUS
-  // --------------------------------------------------------------------- //
-  Future<Map<String, dynamic>> getRechargeStatus({
-    required String clientId,
-    String? token,
-  }) async {
-    return await get('/api/recharge/status/$clientId', token: token);
-  }
-
-  // --------------------------------------------------------------------- //
-  // WALLET & PAYMENT (Unchanged)
-  // --------------------------------------------------------------------- //
-  Future<Map<String, dynamic>> getWalletBalance({required String token}) async {
-    return await get('/api/wallet/balance', token: token);
-  }
-
-  Future<Map<String, dynamic>> getTransactions({required String token}) async {
-    return await get('/api/wallet/transactions', token: token);
-  }
-
-  Future<Map<String, dynamic>> getRazorpayPublicKey({String? token}) async {
-    return await get('/api/payment/razorpay/key', token: token);
-  }
-
-  Future<Map<String, dynamic>> createRazorpayOrder({
-    required String token,
-    required double amount,
-  }) async {
-    return await post('/api/payment/razorpay/order', {'amount': amount}, token: token);
-  }
-
-  Future<Map<String, dynamic>> verifyRazorpayPayment({
-    required String token,
-    required String orderId,
-    required String paymentId,
-    required String signature,
-    required double amount,
-  }) async {
-    return await post(
-      '/api/payment/razorpay/verify',
-      {
-        'razorpay_order_id': orderId,
-        'razorpy_payment_id': paymentId,
-        'razorpay_signature': signature,
-        'amount': amount,
-      },
-      token: token,
-    );
-  }
-
-  // --------------------------------------------------------------------- //
-  // Helpers
-  // --------------------------------------------------------------------- //
-  Map<String, String> _getHeaders(String? token) {
-    final headers = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    };
-    if (token != null) {
-      headers['Authorization'] = 'Bearer $token';
-    }
-    return headers;
-  }
-
-  Map<String, dynamic> _handleResponse(http.Response response) {
-    final statusCode = response.statusCode;
-    final body = response.body;
-
-    if (statusCode >= 200 && statusCode < 300) {
-      return body.isEmpty ? {'success': true} : jsonDecode(body);
-    } else {
-      try {
-        final errorData = jsonDecode(body);
-        throw ApiException(
-          statusCode: statusCode,
-          message: errorData['message'] ?? errorData['error'] ?? 'Unknown error',
-        );
-      } catch (_) {
-        throw ApiException(
-          statusCode: statusCode,
-          message: 'HTTP $statusCode: ${response.reasonPhrase}',
-        );
+      if (typeof cyrusResponse === 'string') {
+        // Example: "JIO|DELHI"
+        const parts = cyrusResponse.split('|');
+        operator = parts[0]?.trim() || '';
+        circle = parts[1]?.trim() || '';
+      } else if (cyrusResponse?.Operator && cyrusResponse?.Circle) {
+        operator = cyrusResponse.Operator;
+        circle = cyrusResponse.Circle;
       }
-    }
-  }
 
-  Exception _handleError(dynamic error) {
-    if (error is ApiException) return error;
-    if (error is SocketException) {
-      return ApiException(statusCode: 0, message: 'No internet connection');
-    }
-    if (error is TimeoutException) {
-      return ApiException(statusCode: 408, message: 'Request timed out');
-    }
-    return ApiException(statusCode: -1, message: 'Unexpected error: $error');
-  }
+      if (!operator || !circle) {
+        res.status(404);
+        throw new Error('Operator not found for this number');
+      }
 
-  void dispose() {
-    _client.close();
-  }
-}
+      res.json({
+        success: true,
+        data: { Operator: operator, Circle: circle },
+      });
+    } catch (error) {
+      console.error('MNP Detection Error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  })
+);
 
-class ApiException implements Exception {
-  final int statusCode;
-  final String message;
-  ApiException({required this.statusCode, required this.message});
-  @override
-  String toString() => 'ApiException($statusCode): $message';
-}
+export default router;
